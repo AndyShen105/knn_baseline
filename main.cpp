@@ -12,15 +12,15 @@ using namespace std;
 int main(int argc, const char * argv[]) {
 
     /* Parameters */
-    int n, r, q, k;
+    int n, r, q, k, s;
     float *data, *queries;
-    n = 10; // Size of dataset (rows
+    n = 247753; // Size of dataset (rows
     r = 50; // Number of dimensions (columns)
-    k = 5; // Nearest neighbors
-    q = 5; // Number of queries
-
-    string inputFile = "/Users/hangshen/Desktop/data_ming/recommdation/MFRetrieval-master/Netflix/q2.txt";
-    string queryFile = "/Users/hangshen/Desktop/data_ming/recommdation/MFRetrieval-master/Netflix/p2.txt";
+    k = 1000; // Nearest neighbors
+    q = 33670; // Number of queries
+    s = 0;
+    string inputFile = "/Users/hangshen/Desktop/data_ming/recommdation/MFRetrieval-master/MovieLens/q.txt";
+    string queryFile = "/Users/hangshen/Desktop/data_ming/recommdation/MFRetrieval-master/MovieLens/p.txt";
 
     data = (float *)malloc((int64_t)sizeof(float)*n*r); check_alloc(data);
     queries = (float *)malloc((int64_t)sizeof(float)*q*r); check_alloc(queries);
@@ -43,7 +43,7 @@ int main(int argc, const char * argv[]) {
     float* bdistances = (float *)malloc((int64_t)sizeof(float)*n*q); check_alloc(bdistances);
 
     clock_t timeStart2 = clock();
-    mksort(&bdistances, &thresholds, n, q, k);
+    knn_distance(&data, &bdistances, n, r, k, &queries, q);
     clock_t timeEnd2 = clock();
     double processTime = (timeEnd2-timeStart2)/CLOCKS_PER_SECOND*1000.0;
     cout<<"Duration of process time: "<< processTime <<endl;
@@ -51,7 +51,7 @@ int main(int argc, const char * argv[]) {
     clock_t timeStart3 = clock();
     mksort(&bdistances, &thresholds, n, q, k);
     clock_t timeEnd3 = clock();
-    double sortTime = (timeEnd2-timeStart2)/CLOCKS_PER_SECOND*1000.0 ;
+    double sortTime = (timeEnd3-timeStart3)/CLOCKS_PER_SECOND*1000.0 ;
     cout<<"Duration of sort time: "<< sortTime <<endl;
     return 0;
 }
