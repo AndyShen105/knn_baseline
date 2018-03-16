@@ -44,7 +44,7 @@ void delim_to_array(float* data[], string filename, int length, int width, char 
         file.close();
     } else {
         std::cerr << "delim_to_array: Failed to open " << filename << std::endl;
-        std::cerr << "delim_to_array: " << strerror(errno) << std::endl;
+        //std::cerr << "delim_to_array: " << strerror(errno) << std::endl;
         std::cin.get(); // Wait before exit
         exit(EXIT_FAILURE);
     }

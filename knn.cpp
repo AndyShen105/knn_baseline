@@ -11,7 +11,7 @@
 inline float query_distance(float *data[], float *query[], int i, int j, int r, int n, int q) {
     float sqDistance = 0.0f;
     for (int d = 0; d < r; d++) {
-        double temp=(*data)[i*r+d] + (*query)[d*q+j];
+        double temp=(*data)[i*r+d] * (*query)[d*q+j];
         sqDistance+=temp;
     }
     return sqDistance;

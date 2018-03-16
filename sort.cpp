@@ -34,7 +34,11 @@ inline bool heap_ismaxlevel(unsigned int node) {
     return !heap_isminlevel(node);
 }
 
+//return a
 inline unsigned int heap_maxidx(float *heapData[], unsigned int hsize) {
+    //std::cout<<(*heapData)[1]<<std::endl;
+    //std::cout<<(*heapData)[2]<<std::endl;
+    //std::cout<<heapData[0]<<std::endl;
     if (hsize == 1) return 0;
     else if (hsize == 2) return 1;
     else return ((*heapData)[1] > (*heapData)[2] ? 1 : 2);
@@ -142,7 +146,7 @@ void heap_tricklemax(float *heapData[], int *heapIndex[], int start, int end) {
 /* Turn an array into a min-max heap in height-linear time */
 void heapify_minmax(float *heapData[], int *heapIndex[], int hsize) {
     int start = (int)floor((float)(hsize - 2) / 2);
-
+    DBG(std::cout << "n of level of heap:"<< start << std::endl;);
     for (int i = start; i >= 0; i--) {
         if (heap_isminlevel(i)) {
             heap_tricklemin(heapData, heapIndex, i, hsize);
@@ -226,8 +230,7 @@ void serial_minmaxheapsort_index(float *data[], int *index[], int n, int q, int 
 void serial_minmaxheapsort_max(float *data[], float *maxval[], int n, int q, int k) {
     /* Take first k elements of data and heapify */
     float *heapData = (float *)malloc(sizeof(float)*k); // Cache
-    int *heapIndex = (int *)malloc(sizeof(int)*k);
-
+    int *heapIndex = (int *)malloc(sizeof(int)*k); //record the index of top-k
     for (int d = 0; d < q; d++) { // Each query
         for (int i = 0; i < k; i++) {
             heapData[i] = (*data)[i*q+d];
@@ -236,13 +239,16 @@ void serial_minmaxheapsort_max(float *data[], float *maxval[], int n, int q, int
 
         heapify_minmax(&heapData, &heapIndex, k);
 
+
         /* Iteratively insert remaining heap elements, starting at k */
         for (int j = k; j < n; j++) {
             heap_insert(&heapData, &heapIndex, (*data)[j*q+d], j, k);
+
         }
 
-        /* Output */
+        /* Output the max value of min-value list*/
         (*maxval)[d] = heapData[heap_maxidx(&heapData, k)];
+        DBG(std::cout<<"key value"<<maxval[0][0]<<std::endl;);
     }
 }
 
