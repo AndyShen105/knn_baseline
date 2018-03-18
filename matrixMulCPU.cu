@@ -132,7 +132,8 @@ int matrixMultiply(float *data, float *query, float **distance, int block_size, 
     // Allocate host memory for matrices A and B
     unsigned int size_A = dimsA.x * dimsA.y;
     unsigned int size_B = dimsB.x * dimsB.y;
-
+    unsigned int mem_size_A = sizeof(float) * size_A;
+    unsigned int mem_size_B = sizeof(float) * size_B;
     // Initialize host memory
     const float valB = 0.01f;
     constantInit(data, size_A, 1.0f);
@@ -179,19 +180,19 @@ int matrixMultiply(float *data, float *query, float **distance, int block_size, 
     }
 
     // copy host memory to device
-    error = cudaMemcpy(d_A, h_A, mem_size_A, cudaMemcpyHostToDevice);
+    error = cudaMemcpy(d_A, data, mem_size_A, cudaMemcpyHostToDevice);
 
     if (error != cudaSuccess)
     {
-        printf("cudaMemcpy (d_A,h_A) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
+        printf("cudaMemcpy (d_A,data) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
         exit(EXIT_FAILURE);
     }
 
-    error = cudaMemcpy(d_B, h_B, mem_size_B, cudaMemcpyHostToDevice);
+    error = cudaMemcpy(d_B, query, mem_size_B, cudaMemcpyHostToDevice);
 
     if (error != cudaSuccess)
     {
-        printf("cudaMemcpy (d_B,h_B) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
+        printf("cudaMemcpy (d_B,query) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
         exit(EXIT_FAILURE);
     }
 
