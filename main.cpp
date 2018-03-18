@@ -5,7 +5,7 @@
 #include "main.h"
 #include "knn.h"
 #include "sort.h"
-
+#include <matrixMulCPU.h>
 using namespace std;
 
 
@@ -34,19 +34,22 @@ int main(int argc, const char * argv[]) {
     cout<<"Duration of reading data: "<< duration <<endl;
     cout<<"finsh reading data"<<endl;
 
+    int block_size = r;
+    dim3 dimsData( n, r, 1);
+    dim3 dimsQuery( q, r, 1);
+
     std::cout << "Data size:  " << (sizeof(float)*n*r)/(1024*1024) << "MB (" << n << " x " << r << ")" << std::endl;
     std::cout << "Query size: " << (sizeof(float)*q*r)/(1024*1024) << "MB (" << q << " x p" << r << ")" << std::endl;
     std::cout << "Dist. size: " << (sizeof(float)*n*q)/(1024*1024) << "MB (" << n << " x " << q << ")" << std::endl;
     std::cout << "Index size: " << (sizeof(float)*k*q)/(1024*1024) << "MB (" << k << " x " << q << ")" << std::endl;
     std::cout << "Total:      " << ((sizeof(float)*n*r) + (sizeof(float)*q*r) + (sizeof(float)*n*q) + (sizeof(float)*k*q))/(1024*1024) << "MB" << std::endl;
 
-    float* dataSample = (float *)malloc(sizeof(float)*s*r); check_alloc(dataSample);
-    float* querySample = (float *)malloc(sizeof(float)*s*r); check_alloc(dataSample);
     float* bdistances = (float *)malloc((int64_t)sizeof(float)*n*q); check_alloc(bdistances);
     int *knn = (int *)malloc(sizeof(int)*k*q); check_alloc(knn);
 
     clock_t timeStart2 = clock();
-    knn_distance(&data, &bdistances, n, r, k, &queries, q);
+    matrixMultiply( &data, &distance, &bdistances, block_size, &dimsData, &dimsQuery);
+    //knn_distance(&data, &bdistances, n, r, k, &queries, q);
     clock_t timeEnd2 = clock();
     double processTime = (timeEnd2-timeStart2)/CLOCKS_PER_SECOND*1000.0 ;
     cout<<"Duration of process time: "<< processTime <<endl;
@@ -58,7 +61,6 @@ int main(int argc, const char * argv[]) {
     cout<<"Duration of sort time: "<< sortTime <<endl;
 
     free(bdistances); bdistances = nullptr;
-    free(knn); dataSample = nullptr;
     free(data); data = nullptr;
     free(queries); queries = nullptr;
 
