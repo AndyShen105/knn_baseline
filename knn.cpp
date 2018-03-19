@@ -2,10 +2,6 @@
 // Created by Hang Shen on 2018/3/15.
 //
 
-#include <iostream>
-#include <iomanip>
-#include "main.h"
-
 
 /* Return squared distance */
 inline float query_distance(float *data[], float *query[], int i, int j, int r, int n, int q) {

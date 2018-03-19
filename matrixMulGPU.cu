@@ -127,17 +127,13 @@ void constantInit(float *data, int size, float val)
 /**
  * Run a simple test of matrix multiplication using CUDA
  */
-int matrixMultiply(float *data, float *query, float **distance, int block_size, dim3 &dimsA, dim3 &dimsB)
+int matrixMultiply(float *data[], float *query[], float *distance[], int block_size, dim3 &dimsA, dim3 &dimsB)
 {
     // Allocate host memory for matrices A and B
     unsigned int size_A = dimsA.x * dimsA.y;
     unsigned int size_B = dimsB.x * dimsB.y;
     unsigned int mem_size_A = sizeof(float) * size_A;
     unsigned int mem_size_B = sizeof(float) * size_B;
-    // Initialize host memory
-    const float valB = 0.01f;
-    constantInit(data, size_A, 1.0f);
-    constantInit(query, size_B, valB);
 
     // Allocate device memory
     float *d_A, *d_B, *d_C;
@@ -180,7 +176,7 @@ int matrixMultiply(float *data, float *query, float **distance, int block_size, 
     }
 
     // copy host memory to device
-    error = cudaMemcpy(d_A, data, mem_size_A, cudaMemcpyHostToDevice);
+    error = cudaMemcpy(d_A, *data, mem_size_A, cudaMemcpyHostToDevice);
 
     if (error != cudaSuccess)
     {
@@ -188,7 +184,7 @@ int matrixMultiply(float *data, float *query, float **distance, int block_size, 
         exit(EXIT_FAILURE);
     }
 
-    error = cudaMemcpy(d_B, query, mem_size_B, cudaMemcpyHostToDevice);
+    error = cudaMemcpy(d_B, *query, mem_size_B, cudaMemcpyHostToDevice);
 
     if (error != cudaSuccess)
     {

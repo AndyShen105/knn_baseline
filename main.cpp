@@ -5,7 +5,13 @@
 #include "main.h"
 #include "knn.h"
 #include "sort.h"
-#include <matrixMulCPU.h>
+#include <stdio.h>
+#include <assert.h>
+#include "matrixMulGPU.h"
+#include <cuda_runtime.h>
+#include <helper_functions.h>
+#include <helper_cuda.h>
+
 using namespace std;
 
 
@@ -48,7 +54,7 @@ int main(int argc, const char * argv[]) {
     int *knn = (int *)malloc(sizeof(int)*k*q); check_alloc(knn);
 
     clock_t timeStart2 = clock();
-    matrixMultiply( &data, &distance, &bdistances, block_size, &dimsData, &dimsQuery);
+    matrixMultiply( &data, &queries, &bdistances, block_size, dimsData, dimsQuery);
     //knn_distance(&data, &bdistances, n, r, k, &queries, q);
     clock_t timeEnd2 = clock();
     double processTime = (timeEnd2-timeStart2)/CLOCKS_PER_SECOND*1000.0 ;
