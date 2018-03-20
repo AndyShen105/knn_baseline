@@ -127,13 +127,17 @@ void constantInit(float *data, int size, float val)
 /**
  * Run a simple test of matrix multiplication using CUDA
  */
-int matrixMultiply(float *data[], float *query[], float *distance[], int block_size, dim3 &dimsA, dim3 &dimsB)
+int matrixMultiply(float **data, float **query, float **distance, int block_size, dim3 &dimsA, dim3 &dimsB)
 {
     // Allocate host memory for matrices A and B
     unsigned int size_A = dimsA.x * dimsA.y;
-    unsigned int size_B = dimsB.x * dimsB.y;
     unsigned int mem_size_A = sizeof(float) * size_A;
+
+    unsigned int size_B = dimsB.x * dimsB.y;
     unsigned int mem_size_B = sizeof(float) * size_B;
+
+
+
 
     // Allocate device memory
     float *d_A, *d_B, *d_C;
@@ -176,19 +180,19 @@ int matrixMultiply(float *data[], float *query[], float *distance[], int block_s
     }
 
     // copy host memory to device
-    error = cudaMemcpy(d_A, *data, mem_size_A, cudaMemcpyHostToDevice);
+    error = cudaMemcpy(d_A, data, mem_size_A, cudaMemcpyHostToDevice);
 
     if (error != cudaSuccess)
     {
-        printf("cudaMemcpy (d_A,data) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
+        printf("cudaMemcpy (d_A,h_A) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
         exit(EXIT_FAILURE);
     }
 
-    error = cudaMemcpy(d_B, *query, mem_size_B, cudaMemcpyHostToDevice);
+    error = cudaMemcpy(d_B, query, mem_size_B, cudaMemcpyHostToDevice);
 
     if (error != cudaSuccess)
     {
-        printf("cudaMemcpy (d_B,query) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
+        printf("cudaMemcpy (d_B,h_B) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
         exit(EXIT_FAILURE);
     }
 
@@ -200,8 +204,14 @@ int matrixMultiply(float *data[], float *query[], float *distance[], int block_s
     printf("Computing result using CUDA Kernel...\n");
 
     // Performs warmup operation using matrixMul CUDA kernel
-
-    matrixMulCUDA<block_size><<< grid, threads >>>(d_C, d_A, d_B, dimsA.x, dimsB.x);
+    if (block_size == 16)
+    {
+        matrixMulCUDA<16><<< grid, threads >>>(d_C, d_A, d_B, dimsA.x, dimsB.x);
+    }
+    else
+    {
+        matrixMulCUDA<32><<< grid, threads >>>(d_C, d_A, d_B, dimsA.x, dimsB.x);
+    }
 
     printf("done\n");
 
@@ -240,10 +250,16 @@ int matrixMultiply(float *data[], float *query[], float *distance[], int block_s
 
     for (int j = 0; j < nIter; j++)
     {
-        matrixMulCUDA<block_size><<< grid, threads >>>(d_C, d_A, d_B, dimsA.x, dimsB.x);
+        if (block_size == 16)
+        {
+            matrixMulCUDA<16><<< grid, threads >>>(d_C, d_A, d_B, dimsA.x, dimsB.x);
+        }
+        else
+        {
+            matrixMulCUDA<32><<< grid, threads >>>(d_C, d_A, d_B, dimsA.x, dimsB.x);
+        }
     }
-
-    // Record the stop event
+// Record the stop event
     error = cudaEventRecord(stop, NULL);
 
     if (error != cudaSuccess)
@@ -282,7 +298,7 @@ int matrixMultiply(float *data[], float *query[], float *distance[], int block_s
             threads.x * threads.y);
 
     // Copy result from device to host
-    error = cudaMemcpy(h_C, d_C, mem_size_C, cudaMemcpyDeviceToHost);
+    error = cudaMemcpy(h_C, distance, mem_size_C, cudaMemcpyDeviceToHost);
 
     if (error != cudaSuccess)
     {
@@ -290,46 +306,16 @@ int matrixMultiply(float *data[], float *query[], float *distance[], int block_s
         exit(EXIT_FAILURE);
     }
 
-    printf("Checking computed result for correctness: ");
-    bool correct = true;
-
-    // test relative error by the formula
-    //     |<x, y>_cpu - <x,y>_gpu|/<|x|, |y|>  < eps
-    double eps = 1.e-6 ; // machine zero
-
-    for (int i = 0; i < (int)(dimsC.x * dimsC.y); i++)
-    {
-        double abs_err = fabs(h_C[i] - (dimsA.x * valB));
-        double dot_length = dimsA.x;
-        double abs_val = fabs(h_C[i]);
-        double rel_err = abs_err/abs_val/dot_length ;
-
-        if (rel_err > eps)
-        {
-            printf("Error! Matrix[%05d]=%.8f, ref=%.8f error term is > %E\n", i, h_C[i], dimsA.x*valB, eps);
-            correct = false;
-        }
-    }
-
-    printf("%s\n", correct ? "Result = PASS" : "Result = FAIL");
 
     // Clean up memory
 
-    free(h_C);
     cudaFree(d_A);
     cudaFree(d_B);
     cudaFree(d_C);
 
     printf("\nNOTE: The CUDA Samples are not meant for performance measurements. Results may vary when GPU Boost is enabled.\n");
 
-    if (correct)
-    {
-        return EXIT_SUCCESS;
-    }
-    else
-    {
-        return EXIT_FAILURE;
-    }
+    return EXIT_SUCCESS;
 }
 
 
