@@ -13,12 +13,8 @@ logging.basicConfig(level=logging.DEBUG,
                     )
 
 setting = [
-
-    (247753, 50, 100, 20, 33670, 0, 0, "/MovieLens/q2.txt", "/MovieLens/q2.txt"),
-    (247753, 50, 100, 20, 33670, 0, 0, "/MovieLens/q2.txt", "/MovieLens/q2.txt"),
-    (247753, 50, 100, 20, 33670, 0, 0, "/MovieLens/q2.txt", "/MovieLens/q2.txt"),
-
-]
+    (247753, 50, 100, 20, 33670, "/home/andy_shen/data/MovieLens/q2.txt", "/home/andy_shen/data/MovieLensMovieLens/q2.txt")
+]    
 def execute(n_rows, n_col, n_neighbour, n_query, n_sample_query, n_sample_data, data_file, query_file):
     """
     :param cmd:

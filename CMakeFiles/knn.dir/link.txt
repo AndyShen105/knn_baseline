@@ -1,0 +1,1 @@
+/usr/bin/c++    -rdynamic CMakeFiles/knn.dir/main.o CMakeFiles/knn.dir/data.o CMakeFiles/knn.dir/knn.o CMakeFiles/knn.dir/sort.o  -o knn 

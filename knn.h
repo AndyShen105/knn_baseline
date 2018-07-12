@@ -4,7 +4,10 @@
 #ifndef KNN_H
 #define KNN_H
 
-void serial_distances(float *data[], float *distances[], int n, int r, int k, float *query[], int q);
-void knn_distance(float **data, float **distances, int n, int r, int k, float **query, int i);
+#include "util.h"
+#include <queue>
+using namespace std;
+void serial_distances(float *data[], priority_queue <canducate_user> &distances, int n, int r, float *query[], int q, int k);
+void knn_distance(float **data, priority_queue <canducate_user> &distances, int n, int r, float **query, int i, int k);
 
 #endif

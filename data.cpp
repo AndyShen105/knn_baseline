@@ -5,6 +5,8 @@ using std::ifstream;
 #include <sstream>
 using std::string;
 #include "data.h"
+#include <string.h>
+#include <errno.h>  
 template<class T>
 T fromString(const std::string& s) {
     std::istringstream stream (s);
@@ -26,6 +28,7 @@ void delim_to_array(float* data[], string filename, int length, int width, char 
                 std::cin.get(); // Wait before exit
                 exit(EXIT_FAILURE);
             }
+            
             std::stringstream lineStream(line);
             std::string item;
             col = 0;
@@ -44,7 +47,7 @@ void delim_to_array(float* data[], string filename, int length, int width, char 
         file.close();
     } else {
         std::cerr << "delim_to_array: Failed to open " << filename << std::endl;
-        //std::cerr << "delim_to_array: " << strerror(errno) << std::endl;
+        std::cerr << "delim_to_array: " << strerror(errno) << std::endl;
         std::cin.get(); // Wait before exit
         exit(EXIT_FAILURE);
     }
