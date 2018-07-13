@@ -60,7 +60,10 @@ int main(int argc, const char * argv[]) {
     clock_t timeEnd2 = clock();
     double processTime = (timeEnd2-timeStart2)/CLOCKS_PER_SECOND ;
     cout<<"Duration of process time: "<< processTime <<endl;
-
+    while(!top_k.empty()){
+        cout<<"NO.:"<<top_k.top().sn<<" Sim:"<<top_k.top().sim<<endl;
+        top_k.pop();
+    }
     free(data); data = nullptr;
     free(queries); queries = nullptr;
 

@@ -40,18 +40,21 @@ void serial_distances(float *data[], priority_queue<canducate_user> &top_k, int 
         for (int d = 0; d < q; d++) { // For each query point
             max_sim = max(query_distance(data, query, i, d, r, n, q), max_sim);
         }
+        if(isnan(max_sim)){
+            continue;
+        }
         canducate_user temp_user;
-            temp_user.sn = i;
-            temp_user.sim = query_distance(data, query, i, d, r, n, q);
-            if (top_k.size<=k){
+        temp_user.sn = i;
+        temp_user.sim = max_sim;
+        if (top_k.size()<=k){
+            top_k.push(temp_user);
+        }
+        else{
+            if(top_k.top().sim<temp_user.sim){
+                top_k.pop();
                 top_k.push(temp_user);
             }
-            else{
-                if(top_k.top<temp_user.sim){
-                    top_k.pop();
-                    top_k.push(temp_user);
-                }
-            }
+        }
     }
 }
 
