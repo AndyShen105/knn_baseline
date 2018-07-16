@@ -8,9 +8,11 @@
 #include <random>
 #include <fstream>
 #include <vector>
+#include <unordered_map>
 #include <regex>
 #include "data.h"
 #include "lsh.h"
+using namespace std;
 
 //set the random interval
 std::uniform_real_distribution<double> dist(-1.0, 1.0);
@@ -41,9 +43,9 @@ float** gen_signature_matrix(int n_feats, int n_plane){
     float **pMatrix = new float*[n_plane];
     rng.seed(std::random_device{}()); 
     for(int i=0; i<n_plane; i++){
-        pMatrix[i]=new float[n_feats];
+        pMatrix[i] = new float[n_feats];
         for(int j=0; j<n_feats;j++){
-            pMatrix[i][j]= dist(rng);
+            pMatrix[i][j] = dist(rng);
         }
     }
     return pMatrix;
@@ -54,9 +56,9 @@ void save_hashFunc(float **sigMatrix, int n_feats, int n_plane){
     outFile.open("data/sigMatrix.txt");
     for(int i = 0; i < n_plane; i++){
         for(int j=0; j<n_feats-1;j++){
-            outFile << sigMatrix[i][j]<<" ";
+            outFile << sigMatrix[i][j] <<" ";
         }
-        outFile << sigMatrix[i][n_feats-1]<<std::endl;
+        outFile << sigMatrix[i][n_feats-1] << std::endl;
     }
     outFile.close();
 }
@@ -78,31 +80,31 @@ void load_hashFunc(float **sigMatrix, int n_feats, int n_plane, char delimiter){
 
 }
 
-void user_map(float *sigMatrix,float **hash_func, int n_users, int n_feats, int n_plane){
+void user_map(unordered_map<int, vector<int>> &user_maps, float *data,float **hash_func, int n_users, int n_feats, int n_plane){
     int index = 0;
-    
+    //unordered_map<int, vector<int>> user_maps;
     for (int i = 0; i < n_users; i++) { // For each user
         index = i*n_feats;
-        int bucket_no = signature_bit(sigMatrix, hash_func, index, n_feats, n_plane);
-        //TODO: uncomplete func
+        int bucket_no = signature_bit(data, hash_func, index, n_feats, n_plane);
+        user_maps[bucket_no].push_back(i);
     }
-}
-
-int main(){
-    // float **p=gen_signature_matrix(4,4);
     
-    // for(int i=0; i<4; i++){
-       
-    //     for(int j=0; j<4;j++){
-    //         std::cout<<p[i][j]<<" ";
-    //     }
-    //      std::cout<<std::endl;
-    // }
-    // save_hashFunc(p, 4, 4);
-    // float u[4]={0.1, -0.4, 0.5, 0.2};
-    // int sig=signature_bit(u, p, 4,4);
-    // std::cout<<sig;
-    // return 0;
-   
-   
+}
+#define CLOCKS_PER_SECOND 1000000.0
+int main(){
+    float * data,*queries;
+    queries = (float *)malloc((int64_t)sizeof(float)*50*247753);
+    csv_to_array(&queries, "/home/andy_shen/data/MovieLens/q.txt", 247753, 50);
+    cout<<"read data done"<<endl;
+    clock_t time1 = clock();
+    float** sig_maritx = gen_signature_matrix(50, 5);
+    clock_t time2 = clock();
+    unordered_map<int, vector<int>> user_maps;
+    user_map(user_maps, queries, sig_maritx, 247753, 50, 5);
+    for(unordered_map<int, vector<int>>::iterator iter=user_maps.begin();iter!=user_maps.end();iter++)
+        cout<<"key value is"<<iter->first<<" the mapped value is "<< iter->second.size()<<endl;
+    clock_t time3 = clock();
+    cout<<"init matrix time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
+    cout<<"init matrix time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
+    return 0;
 }
