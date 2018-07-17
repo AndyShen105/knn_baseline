@@ -10,6 +10,8 @@
 #include <vector>
 #include <unordered_map>
 #include <regex>
+#include <queue>
+#include <util.h>
 #include "data.h"
 #include "lsh.h"
 using namespace std;
@@ -90,19 +92,79 @@ void user_map(unordered_map<int, vector<int>> &user_maps, float *data,float **ha
     }
     
 }
+
+float get_cosine_dis(int seed_index,
+                    int pool_index,
+                    int n_feats,
+                    float * data,
+                    float *queries){
+    float dis = 0.0f;
+    float datanorm = 0.0f;
+    float querynorm = 0.0f;
+    for(int i=0; i<n_feats; i++){
+        dis += data[seed_index*n_feats+i]*queries[pool_index*n_feats+i];
+        datanorm = data[seed_index*n_feats+i]*data[seed_index*n_feats+i];
+        querynorm = queries[pool_index*n_feats+i]*queries[pool_index*n_feats+i];
+    }   
+    return dis/(sqrt(datanorm) * sqrt(querynorm));
+}
+
+void gen_ExAudiences(priority_queue<canducate_user> &top_k,
+                    unordered_map<int, 
+                    vector<int>> user_maps_pool, 
+                    unordered_map<int, 
+                    vector<int>> user_maps_seed, 
+                    int n_bit,
+                    int n_feats,
+                    int k,
+                    float * data,
+                    float *queries){
+    int n_cycle = pow(2, n_bit);
+    for(int i=0; i<n_cycle; i++){
+        vector<int> seed = user_maps_seed[i];
+        vector<int> pool = user_maps_pool[i];
+        for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
+            float max_sim = 0.0;
+            for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
+                float max_sim = max(get_cosine_dis(*seed_index, *pool_index, n_feats, data, queries), max_sim);
+            }
+            if(isnan(max_sim)){
+            continue;
+            }
+            canducate_user temp_user;
+            temp_user.sn = i;
+            temp_user.sim = max_sim;
+            if (top_k.size()<=k){
+                top_k.push(temp_user);
+            }
+            else{
+                if(top_k.top().sim<temp_user.sim){
+                    top_k.pop();
+                    top_k.push(temp_user);
+                }
+            }
+        }
+    }
+        
+}
+
 #define CLOCKS_PER_SECOND 1000000.0
 int main(){
     float * data,*queries;
     queries = (float *)malloc((int64_t)sizeof(float)*50*247753);
     csv_to_array(&queries, "/home/andy_shen/data/MovieLens/q.txt", 247753, 50);
+    data = (float *)malloc((int64_t)sizeof(float)*50*33670);
+    csv_to_array(&queries, "/home/andy_shen/data/MovieLens/p.txt", 33670, 50);
     cout<<"read data done"<<endl;
     clock_t time1 = clock();
     float** sig_maritx = gen_signature_matrix(50, 5);
     clock_t time2 = clock();
-    unordered_map<int, vector<int>> user_maps;
-    user_map(user_maps, queries, sig_maritx, 247753, 50, 5);
-    for(unordered_map<int, vector<int>>::iterator iter=user_maps.begin();iter!=user_maps.end();iter++)
-        cout<<"key value is"<<iter->first<<" the mapped value is "<< iter->second.size()<<endl;
+    unordered_map<int, vector<int>> user_maps_pool;
+    user_map(user_maps_pool, queries, sig_maritx, 247753, 50, 5);
+    unordered_map<int, vector<int>> user_maps_seed;
+    user_map(user_maps_seed, queries, sig_maritx, 33670, 50, 5);
+    // for(unordered_map<int, vector<int>>::iterator iter=user_maps.begin();iter!=user_maps.end();iter++)
+    //     cout<<"key value is"<<iter->first<<" the mapped value is "<< iter->second.size()<<endl;
     clock_t time3 = clock();
     cout<<"init matrix time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
     cout<<"init matrix time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
