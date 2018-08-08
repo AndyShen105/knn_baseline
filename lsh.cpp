@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <regex>
 #include <queue>
-#include <util.h>
+#include "util.h"
 #include "data.h"
 #include "lsh.h"
 using namespace std;
@@ -82,7 +82,12 @@ void load_hashFunc(float **sigMatrix, int n_feats, int n_plane, char delimiter){
 
 }
 
-void user_map(unordered_map<int, vector<int>> &user_maps, float *data,float **hash_func, int n_users, int n_feats, int n_plane){
+void user_map(unordered_map<int, vector<int>> &user_maps, 
+            float *data,
+            float **hash_func, 
+            int n_users, 
+            int n_feats, 
+            int n_plane){
     int index = 0;
     //unordered_map<int, vector<int>> user_maps;
     for (int i = 0; i < n_users; i++) { // For each user
@@ -96,24 +101,22 @@ void user_map(unordered_map<int, vector<int>> &user_maps, float *data,float **ha
 float get_cosine_dis(int seed_index,
                     int pool_index,
                     int n_feats,
-                    float * data,
+                    float *data,
                     float *queries){
     float dis = 0.0f;
     float datanorm = 0.0f;
     float querynorm = 0.0f;
     for(int i=0; i<n_feats; i++){
         dis += data[seed_index*n_feats+i]*queries[pool_index*n_feats+i];
-        datanorm = data[seed_index*n_feats+i]*data[seed_index*n_feats+i];
-        querynorm = queries[pool_index*n_feats+i]*queries[pool_index*n_feats+i];
+        datanorm += data[seed_index*n_feats+i]*data[seed_index*n_feats+i];
+        querynorm += queries[pool_index*n_feats+i]*queries[pool_index*n_feats+i];
     }   
     return dis/(sqrt(datanorm) * sqrt(querynorm));
 }
 
 void gen_ExAudiences(priority_queue<canducate_user> &top_k,
-                    unordered_map<int, 
-                    vector<int>> user_maps_pool, 
-                    unordered_map<int, 
-                    vector<int>> user_maps_seed, 
+                    unordered_map<int,vector<int>> user_maps_pool, 
+                    unordered_map<int,vector<int>> user_maps_seed, 
                     int n_bit,
                     int n_feats,
                     int k,
@@ -124,16 +127,17 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
         vector<int> seed = user_maps_seed[i];
         vector<int> pool = user_maps_pool[i];
         for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
-            float max_sim = 0.0;
+            float max_sim = 0.0f;
             for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
-                float max_sim = max(get_cosine_dis(*seed_index, *pool_index, n_feats, data, queries), max_sim);
+                max_sim = max(get_cosine_dis(*seed_index, *pool_index, n_feats, data, queries), max_sim);
             }
             if(isnan(max_sim)){
             continue;
             }
             canducate_user temp_user;
-            temp_user.sn = i;
+            temp_user.sn = *pool_index;
             temp_user.sim = max_sim;
+            
             if (top_k.size()<=k){
                 top_k.push(temp_user);
             }
@@ -144,16 +148,17 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
                 }
             }
         }
+        cout<<"Bucket"<<i<<" finished "<<endl;
     }
         
 }
 
 #define CLOCKS_PER_SECOND 1000000.0
 int main(){
-    float * data,*queries;
-    queries = (float *)malloc((int64_t)sizeof(float)*50*247753);
-    csv_to_array(&queries, "/home/andy_shen/data/MovieLens/q.txt", 247753, 50);
-    data = (float *)malloc((int64_t)sizeof(float)*50*33670);
+    float *data,*queries;
+    data = (float *)malloc((int64_t)sizeof(float)*50*247753);
+    csv_to_array(&data, "/home/andy_shen/data/MovieLens/q.txt", 247753, 50);
+    queries = (float *)malloc((int64_t)sizeof(float)*50*33670);
     csv_to_array(&queries, "/home/andy_shen/data/MovieLens/p.txt", 33670, 50);
     cout<<"read data done"<<endl;
     clock_t time1 = clock();
@@ -163,10 +168,16 @@ int main(){
     user_map(user_maps_pool, queries, sig_maritx, 247753, 50, 5);
     unordered_map<int, vector<int>> user_maps_seed;
     user_map(user_maps_seed, queries, sig_maritx, 33670, 50, 5);
-    // for(unordered_map<int, vector<int>>::iterator iter=user_maps.begin();iter!=user_maps.end();iter++)
-    //     cout<<"key value is"<<iter->first<<" the mapped value is "<< iter->second.size()<<endl;
     clock_t time3 = clock();
-    cout<<"init matrix time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
-    cout<<"init matrix time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
+    cout<<"init sigmatrix time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
+    cout<<"init lshmatrix time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
+    priority_queue<canducate_user> top_k;
+    gen_ExAudiences(top_k, user_maps_pool, user_maps_seed, 5, 50, 1000, data, queries);
+    clock_t time4 = clock();
+    while(!top_k.empty()){
+        cout<<"NO.:"<<top_k.top().sn<<" Sim:"<<top_k.top().sim<<endl;
+        top_k.pop();
+    }
+    cout<<"query time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
     return 0;
 }
