@@ -220,14 +220,18 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
                     float * data,
                     float *queries){
     int n_cycle = pow(2, n_bit);
+    canducate_user temp_user;
+    cout<< "k: "<<k<<endl;
     for(int i=0; i<n_cycle; i++){
+        cout<<" ---------------------start---------------"<<endl;
         vector<int> seed = user_maps_seed[i];
         vector<int> pool = user_maps_pool[i];
         cout<<"pool size"<<pool.size()<<endl;
+        // if size<50, lsh, else v-lsh
         if (seed.size()<50){
             for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
-                canducate_user temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);  
-                if (top_k.size()<=k){
+                temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);
+                if (top_k.size()<k){
                     top_k.push(temp_user);
                 }
                 else{
@@ -249,38 +253,31 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
                     bucket_sn = (*index).sn;
                 }
             }
-            cout<<"3"<<endl;
             float* upper_bound_list = new float(pool.size());
             calculate_upperbound(pool, data, centroid,  theta_b,  upper_bound_list,  n_feats);
-            
-            for(int i=0; i<pool.size(); i++){
-                //if minheap.size<k
-                if (top_k.size()<=k){
-                    for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
-                    
-                    canducate_user temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries); 
-                    top_k.push(temp_user);
-                    i+=1;
-                    } 
-                    
+
+            for(int j=0; j<pool.size(); j++){
+
+                if(upper_bound_list[j]>top_k.top().sim){
+                    temp_user.sn = pool[j];
+                    temp_user.sim = upper_bound_list[j];
                 }
                 else{
-                    if(upper_bound_list[i]>top_k.top().sim){
-                        canducate_user temp_user;
-                        temp_user.sn = pool[i];
-                        temp_user.sim = upper_bound_list[i];
-                        top_k.push(temp_user);
-                    }
-                    else{
-                        canducate_user temp_user = calculate_similarity(seed, pool[i], n_feats, data, queries); 
-                        top_k.push(temp_user);
-                    }
+                    temp_user = calculate_similarity(seed, pool[j], n_feats, data, queries);
                 }
+                if (j%1000==0)
+                    cout<<"j: "<<j<<endl;
+                if (top_k.size()>=k)
+                    top_k.pop();
+                top_k.push(temp_user);
                                
             }
+            if(centroid==NULL)
+                cout<<"invaild pointer"<<endl;
+            delete centroid;
             delete upper_bound_list;
         }
-        
+        cout<<"seed capacity: "<<seed.capacity()<<endl;
         cout<<"Bucket"<<i<<" finished "<<endl;
     }
         
@@ -307,9 +304,9 @@ float calculate_angle(vector<float> a, vector<float> b){
 int main(){
     float *data,*queries;
     data = (float *)malloc((int64_t)sizeof(float)*50*247753);
-    csv_to_array(&data, "/home/andy_shen/data/MovieLens/q.txt", 247753, 50);
+    csv_to_array(&data, "/home/andyshen/data/MovieLens/q.txt", 247753, 50);
     queries = (float *)malloc((int64_t)sizeof(float)*50*33670);
-    csv_to_array(&queries, "/home/andy_shen/data/MovieLens/p.txt", 33670, 50);
+    csv_to_array(&queries, "/home/andyshen/data/MovieLens/p.txt", 33670, 50);
     cout<<"read data done"<<endl;
     clock_t time1 = clock();
     float** sig_maritx = gen_signature_matrix(50, 5);

@@ -157,9 +157,9 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
 int main(){
     float *data,*queries;
     data = (float *)malloc((int64_t)sizeof(float)*50*247753);
-    csv_to_array(&data, "/home/andy_shen/data/MovieLens/q.txt", 247753, 50);
+    csv_to_array(&data, "/home/andyshen/data/MovieLens/q.txt", 247753, 50);
     queries = (float *)malloc((int64_t)sizeof(float)*50*33670);
-    csv_to_array(&queries, "/home/andy_shen/data/MovieLens/p.txt", 33670, 50);
+    csv_to_array(&queries, "/home/andyshen/data/MovieLens/p.txt", 33670, 50);
     cout<<"read data done"<<endl;
     clock_t time1 = clock();
     float** sig_maritx = gen_signature_matrix(50, 5);
