@@ -203,11 +203,15 @@ void calculate_upperbound(vector<int> pool,
         if(user_sqrt!=0) {
             float cos_theta = dot/(sqrt(user_sqrt)*sqrt(centroid_sqrt));
             float theta_ic = acos(cos_theta);
-            if (theta_ic-theta_b>=0)
-                upper_bound = cos(theta_ic-theta_b);
-            else
+            if (theta_ic-theta_b>0) {
+                upper_bound = cos(theta_ic - theta_b);
+            }
+            else{
                 upper_bound = 1;
+            }
+
         }
+        //cout<<"upper bound: "<<upper_bound<<endl;
         upper_bound_list[pool_sn++] = upper_bound;
     }
 }
@@ -244,6 +248,7 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
     for(int i=0; i<n_cycle; i++){
         cout<<" ---------------------start---------------"<<endl;
         vector<int> seed = user_maps_seed[i];
+        cout<<"0"<<endl;
         vector<int> pool = user_maps_pool[i];
         cout<<"pool size: "<<pool.size()<<endl;
         cout<<"seed size: "<<seed.size()<<endl;
@@ -263,55 +268,54 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
             }
         }
         else{
-            float * centroid ;
-            float theta_b ;
-            int bucket_sn ;
-            float centroid_sqrt;
+
+            float* upper_bound_list = new float(pool.size());
             for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
                 if(i == (*index).sn){
-                    centroid = (*index).centroid;
-                    theta_b = (*index).theta_b;
-                    centroid_sqrt = (*index).centroid_sqrt;
-                    bucket_sn = (*index).sn;
+                    float centroid_sqrt = (*index).centroid_sqrt;
+                    float theta_b = (*index).theta_b;
+                    int bucket_sn = (*index).sn;
+                    cout<<"get bucket info"<<endl;
+                    cout<<"centroid_sqrt: "<<centroid_sqrt<<endl;
+                    calculate_upperbound(pool, data, (*index).centroid, centroid_sqrt, theta_b,  upper_bound_list,  n_feats);
                     break;
+
                 }
 
             }
-            float* upper_bound_list = new float(pool.size());
-            cout<<"centroid_sqrt: "<<centroid_sqrt<<endl;
-            calculate_upperbound(pool, data, centroid, centroid_sqrt, theta_b,  upper_bound_list,  n_feats);
+
             cout<<"caculate upper bound"<<endl;
-//            for(int m=0; m<pool.size();m++)
-//                cout<<upper_bound_list[m]<<endl;
+
             for(int j=0; j<pool.size(); j++){
-                //cout<<"upper_bound_list: "<<upper_bound_list[j]<<endl;
-                if(upper_bound_list[j]>top_k.top().sim){
+                cout<<"upper_bound_list: "<<upper_bound_list[j]<<endl;
+                //top-k is not empty and upperbound > top-k.top
+                if(upper_bound_list[j]>top_k.top().sim && !top_k.empty()){
+                    cout<<"b"<<endl;
                     temp_user.sn = pool[j];
                     temp_user.sim = upper_bound_list[j];
                     all_count++;
                     save_calu_times += seed.size();
-                    
+
                 }
                 else{
+                    cout<<"a"<<endl;
                     temp_user = calculate_similarity(seed, pool[j], n_feats, data, queries);
 
                 }
 
-                if (j%1000==0)
+                if (j%100==0)
                     cout<<"j: "<<j<<endl;
                 if (top_k.size()>=k)
                     top_k.pop();
                 top_k.push(temp_user);
                                
             }
-            if(centroid==NULL)
-                cout<<"invaild pointer"<<endl;
-            cout<<"delete cebtroid"<<endl;
-            //delete centroid;
             delete upper_bound_list;
         }
         cout<<"seed capacity: "<<seed.capacity()<<endl;
         cout<<"Bucket"<<i<<" finished "<<endl;
+        cout<<"all_count: "<<all_count<<endl;
+        cout<<"save times: "<< save_calu_times<<endl;
     }
         
 }
