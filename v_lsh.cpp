@@ -30,6 +30,21 @@ struct bucket_info{
     float* centroid; // centroid vector of bucket
     float theta_b;
     float centroid_sqrt;
+    bucket_info(int size){
+        centroid = new float[size]();
+    }
+    void centroid_copy(float* centroid_copy, int size){
+        for (int i=0; i<size; i++){
+            centroid[i] = centroid_copy[i];
+        }
+    }
+//    ~bucket_info(){
+//        if(centroid!=NULL){
+//            delete [] centroid;
+//            centroid = NULL;
+//        }
+//
+//    }
 };
 
 int signature_bit(float *data, float **planes, int index, int n_feats, int n_plane){
@@ -123,7 +138,9 @@ float get_cosine_dis(int seed_index,
         dis += data[seed_index*n_feats+i]*queries[pool_index*n_feats+i];
         datanorm += data[seed_index*n_feats+i]*data[seed_index*n_feats+i];
         querynorm += queries[pool_index*n_feats+i]*queries[pool_index*n_feats+i];
-    }   
+    }
+    if (datanorm == 0.0 || querynorm == 0.0)
+        return -1000.0;
     return dis/(sqrt(datanorm) * sqrt(querynorm));
 }
 
@@ -137,22 +154,16 @@ void calculate_centroid_angle(vector<bucket_info> &centroid_angle, unordered_map
         if(seed.size()<50)
             continue;
         float *centroid = new float[n_feats]();
-        for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
-            for(int j=0; j<n_feats; j++){
-                centroid[j] += queries[(*seed_index)*n_feats+j];
-            }
-        }
-        // mean of centroid
         float centroid_sqrt=0.0;
         for(int j=0; j<n_feats; j++){
+            for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
+                centroid[j] += queries[(*seed_index)*n_feats+j];
+            }
             centroid[j] = centroid[j]/seed.size();
-//            #if DEBUG
-//            cout<<centroid[j]<<" ";
-//            #endif
             centroid_sqrt += pow(centroid[j], 2);
         }
 
-        //get angle B
+      //get angle B
         float theta_b = 0.0;
         for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
             float user_sqrt = 0.0;
@@ -164,14 +175,14 @@ void calculate_centroid_angle(vector<bucket_info> &centroid_angle, unordered_map
             float cos = dot/(sqrt(user_sqrt)*sqrt(centroid_sqrt));
             theta_b = max(acos(cos), theta_b);
         }
-        bucket_info temp;
+        bucket_info temp =  bucket_info(seed.size());
         temp.sn = i;
-        temp.centroid = centroid;
+        temp.centroid_copy(centroid, seed.size());
         temp.theta_b = theta_b;
         temp.centroid_sqrt = centroid_sqrt;
         centroid_angle.push_back(temp);
-        cout<<centroid_angle.size()<<endl;
-        delete centroid;
+
+        delete []centroid;
     }
     #if DEBUG
     //print each theta b of bucket
@@ -198,8 +209,8 @@ void calculate_upperbound(vector<int> pool,
             user_sqrt += pow(data[(*pool_index)*n_feats+j], 2);
             dot += data[(*pool_index)*n_feats+j] * centroid[j];
         }
-        //cout<<"centroid_sqrt: "<<centroid_sqrt<<endl;
-        float upper_bound=0.0;
+
+        float upper_bound=-1000.0;
         if(user_sqrt!=0) {
             float cos_theta = dot/(sqrt(user_sqrt)*sqrt(centroid_sqrt));
             float theta_ic = acos(cos_theta);
@@ -211,7 +222,7 @@ void calculate_upperbound(vector<int> pool,
             }
 
         }
-        //cout<<"upper bound: "<<upper_bound<<endl;
+
         upper_bound_list[pool_sn++] = upper_bound;
     }
 }
@@ -244,40 +255,43 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
                     float *queries){
     int n_cycle = pow(2, n_bit);
     canducate_user temp_user;
-    cout<< "k: "<<k<<endl;
+
     for(int i=0; i<n_cycle; i++){
         cout<<" ---------------------start---------------"<<endl;
+        if (user_maps_seed[i].empty()){
+            continue;
+        }
         vector<int> seed = user_maps_seed[i];
-        cout<<"0"<<endl;
         vector<int> pool = user_maps_pool[i];
         cout<<"pool size: "<<pool.size()<<endl;
         cout<<"seed size: "<<seed.size()<<endl;
         // if size<50, lsh, else v-lsh
         if (seed.size()<50){
+
+
             for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
+
                 temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);
-                if (top_k.size()<k){
+                if (top_k.size()<k && temp_user.sim){
                     top_k.push(temp_user);
                 }
                 else{
-                    if(top_k.top().sim<temp_user.sim){
+                    if(top_k.top().sim<temp_user.sim && temp_user.sim){
                         top_k.pop();
                         top_k.push(temp_user);
                     }
                 }
             }
+
         }
         else{
 
-            float* upper_bound_list = new float(pool.size());
+            float* upper_bound_list = new float[pool.size()];
             for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
                 if(i == (*index).sn){
-                    float centroid_sqrt = (*index).centroid_sqrt;
-                    float theta_b = (*index).theta_b;
-                    int bucket_sn = (*index).sn;
                     cout<<"get bucket info"<<endl;
-                    cout<<"centroid_sqrt: "<<centroid_sqrt<<endl;
-                    calculate_upperbound(pool, data, (*index).centroid, centroid_sqrt, theta_b,  upper_bound_list,  n_feats);
+                    cout<<"centroid_sqrt: "<<(*index).theta_b<<endl;
+                    calculate_upperbound(pool, data, (*index).centroid, (*index).centroid_sqrt, (*index).theta_b,  upper_bound_list,  n_feats);
                     break;
 
                 }
@@ -287,30 +301,26 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
             cout<<"caculate upper bound"<<endl;
 
             for(int j=0; j<pool.size(); j++){
-                cout<<"upper_bound_list: "<<upper_bound_list[j]<<endl;
+//                cout<<"upper_bound_list: "<<upper_bound_list[j]<<endl;
                 //top-k is not empty and upperbound > top-k.top
-                if(upper_bound_list[j]>top_k.top().sim && !top_k.empty()){
-                    cout<<"b"<<endl;
-                    temp_user.sn = pool[j];
-                    temp_user.sim = upper_bound_list[j];
-                    all_count++;
-                    save_calu_times += seed.size();
+                if(upper_bound_list[j] == -1000.0)
+                    continue;
 
+                if(top_k.size()<k || upper_bound_list[j]>=top_k.top().sim ){
+                    temp_user = calculate_similarity(seed, pool[j], n_feats, data, queries);
                 }
                 else{
-                    cout<<"a"<<endl;
-                    temp_user = calculate_similarity(seed, pool[j], n_feats, data, queries);
-
+                    all_count++;
+                    save_calu_times += seed.size();
                 }
 
-                if (j%100==0)
-                    cout<<"j: "<<j<<endl;
-                if (top_k.size()>=k)
+                if (top_k.size() == k && temp_user.sim > top_k.top().sim )
                     top_k.pop();
-                top_k.push(temp_user);
+                if (top_k.size() < k  )
+                    top_k.push(temp_user);
                                
             }
-            delete upper_bound_list;
+            delete []upper_bound_list;
         }
         cout<<"seed capacity: "<<seed.capacity()<<endl;
         cout<<"Bucket"<<i<<" finished "<<endl;
@@ -352,7 +362,7 @@ int main(){
     user_map(user_maps_pool, queries, sig_maritx, 247753, 50, 5);
     unordered_map<int, vector<int>> user_maps_seed;
     
-    user_map(user_maps_seed, queries, sig_maritx, 33670, 50, 5);
+    user_map(user_maps_seed, queries, sig_maritx, 33670,50, 5);
     for(int i=0; i<32; i++){
         cout<<user_maps_seed[i].size()<<endl;
     }
@@ -363,6 +373,14 @@ int main(){
     vector<bucket_info> centroid_angle;
     calculate_centroid_angle(centroid_angle, user_maps_seed, queries, 50, 5);
 
+#if DEBUG
+    for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
+        cout<<"centroid_sqrt: "<<(*index).centroid_sqrt<<endl;
+        for(int i=0; i<50 ;i++)
+            cout<< (*index).centroid[i]<<" ";
+        cout<<endl;
+    }
+#endif
 
     priority_queue<canducate_user> top_k;
 
