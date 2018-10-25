@@ -14,136 +14,16 @@
 #include "util.h"
 #include "data.h"
 #include "lsh.h"
+#include "v_lsh.h"
 #include<cmath>
 
 using namespace std;
 
 #define DEBUG 0
-//set the random interval
-std::uniform_real_distribution<double> dist(-1.0, 1.0);
 //------------------
 int all_count = 0;
 int save_calu_times = 0;
 //------------------
-struct bucket_info{
-    int sn; // series number of bucket
-    float* centroid; // centroid vector of bucket
-    float theta_b;
-    float centroid_sqrt;
-    bucket_info(int size){
-        centroid = new float[size]();
-    }
-    void centroid_copy(float* centroid_copy, int size){
-        for (int i=0; i<size; i++){
-            centroid[i] = centroid_copy[i];
-        }
-    }
-//    ~bucket_info(){
-//        if(centroid!=NULL){
-//            delete [] centroid;
-//            centroid = NULL;
-//        }
-//
-//    }
-};
-
-int signature_bit(float *data, float **planes, int index, int n_feats, int n_plane){
-    /*
-    LSH signature generation using random projection
-    Returns the signature bits.
-    */
-    int sig = 0;
-    for(int i=0; i<n_plane; i++){
-        sig <<= 1;
-        float dot_product = 0.0;
-        for(int j=0; j<n_feats;j++){
-            dot_product += data[j+index]*planes[i][j];
-        }
-        if(dot_product >= 0){
-            sig |= 1;
-        }
-    }
-    return sig;
-}
-
-float** gen_signature_matrix(int n_feats, int n_plane){
-
-    //Initialize with non-deterministic seeds
-    std::mt19937 rng;  
-    float **pMatrix = new float*[n_plane];
-    rng.seed(std::random_device{}()); 
-    for(int i=0; i<n_plane; i++){
-        pMatrix[i] = new float[n_feats];
-        for(int j=0; j<n_feats;j++){
-            pMatrix[i][j] = dist(rng);
-        }
-    }
-    return pMatrix;
-}
-
-void save_hashFunc(float **sigMatrix, int n_feats, int n_plane){
-    std::ofstream outFile;
-    outFile.open("data/sigMatrix.txt");
-    for(int i = 0; i < n_plane; i++){
-        for(int j=0; j<n_feats-1;j++){
-            outFile << sigMatrix[i][j] <<" ";
-        }
-        outFile << sigMatrix[i][n_feats-1] << std::endl;
-    }
-    outFile.close();
-}
-
-void load_hashFunc(float **sigMatrix, int n_feats, int n_plane, char delimiter){
-    string line;
-    std::ifstream in("data/sigMatrix.txt"); 
-    int i=0;
-    while(getline(in, line)) { 
-        std::stringstream lineStream(line);
-        std::string item;
-        int j=0;
-        while (getline(lineStream, item, delimiter)) {
-            sigMatrix[i][j]=stof(item);
-            j++;
-        }
-        i++;
-    }
-
-}
-
-void user_map(unordered_map<int, vector<int>> &user_maps, 
-            float *data,
-            float **hash_func, 
-            int n_users, 
-            int n_feats, 
-            int n_plane){
-    int index = 0;
-    //unordered_map<int, vector<int>> user_maps;
-    for (int i = 0; i < n_users; i++) { // For each user
-        index = i*n_feats;
-        int bucket_no = signature_bit(data, hash_func, index, n_feats, n_plane);
-        user_maps[bucket_no].push_back(i);
-    }
-    
-}
-
-float get_cosine_dis(int seed_index,
-                    int pool_index,
-                    int n_feats,
-                    float *data,
-                    float *queries){
-    float dis = 0.0f;
-    float datanorm = 0.0f;
-    float querynorm = 0.0f;
-    for(int i=0; i<n_feats; i++){
-        dis += data[seed_index*n_feats+i]*queries[pool_index*n_feats+i];
-        datanorm += data[seed_index*n_feats+i]*data[seed_index*n_feats+i];
-        querynorm += queries[pool_index*n_feats+i]*queries[pool_index*n_feats+i];
-    }
-    if (datanorm == 0.0 || querynorm == 0.0)
-        return -1000.0;
-    return dis/(sqrt(datanorm) * sqrt(querynorm));
-}
-
 //calculate cetroid and angle of seed pool
 void calculate_centroid_angle(vector<bucket_info> &centroid_angle, unordered_map<int,vector<int>> user_maps_seed, float *queries, int n_feats, int n_bit){
     int n_cycle = pow(2, n_bit);
@@ -235,7 +115,7 @@ canducate_user calculate_similarity(vector<int> seed, int pool_index, int n_feat
     canducate_user temp_user;
     temp_user.sn = pool_index;
     if(isnan(max_sim)){
-        temp_user.sim = 0;
+        temp_user.sim = 0.0;
 
     }
     else{
@@ -244,7 +124,7 @@ canducate_user calculate_similarity(vector<int> seed, int pool_index, int n_feat
     return temp_user;
 }
 
-void gen_ExAudiences(priority_queue<canducate_user> &top_k,
+void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
                     unordered_map<int,vector<int>> user_maps_pool, 
                     unordered_map<int,vector<int>> user_maps_seed, 
                     vector<bucket_info> centroid_angle,
@@ -257,14 +137,13 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
     canducate_user temp_user;
 
     for(int i=0; i<n_cycle; i++){
-        cout<<" ---------------------start---------------"<<endl;
+
         if (user_maps_seed[i].empty()){
             continue;
         }
         vector<int> seed = user_maps_seed[i];
         vector<int> pool = user_maps_pool[i];
-        cout<<"pool size: "<<pool.size()<<endl;
-        cout<<"seed size: "<<seed.size()<<endl;
+
         // if size<50, lsh, else v-lsh
         if (seed.size()<50){
 
@@ -289,8 +168,10 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
             float* upper_bound_list = new float[pool.size()];
             for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
                 if(i == (*index).sn){
+#if DEBUG
                     cout<<"get bucket info"<<endl;
                     cout<<"centroid_sqrt: "<<(*index).theta_b<<endl;
+#endif
                     calculate_upperbound(pool, data, (*index).centroid, (*index).centroid_sqrt, (*index).theta_b,  upper_bound_list,  n_feats);
                     break;
 
@@ -298,7 +179,7 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
 
             }
 
-            cout<<"caculate upper bound"<<endl;
+
 
             for(int j=0; j<pool.size(); j++){
 //                cout<<"upper_bound_list: "<<upper_bound_list[j]<<endl;
@@ -322,11 +203,17 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
             }
             delete []upper_bound_list;
         }
+#if DEBUG
+        cout<<"pool size: "<<pool.size()<<endl;
+        cout<<"seed size: "<<seed.size()<<endl;
         cout<<"seed capacity: "<<seed.capacity()<<endl;
         cout<<"Bucket"<<i<<" finished "<<endl;
-        cout<<"all_count: "<<all_count<<endl;
-        cout<<"save times: "<< save_calu_times<<endl;
+
+#endif
+
     }
+    cout<<"all_count: "<<all_count<<endl;
+    cout<<"save times: "<< save_calu_times<<endl;
         
 }
 
@@ -348,6 +235,7 @@ float calculate_angle(vector<float> a, vector<float> b){
     std::cout<<cos<<endl;
     return the;
 }
+#if DEBUG
 int main(){
     float *data,*queries;
     data = (float *)malloc((int64_t)sizeof(float)*50*247753);
@@ -361,7 +249,7 @@ int main(){
     unordered_map<int, vector<int>> user_maps_pool;
     user_map(user_maps_pool, queries, sig_maritx, 247753, 50, 5);
     unordered_map<int, vector<int>> user_maps_seed;
-    
+
     user_map(user_maps_seed, queries, sig_maritx, 33670,50, 5);
     for(int i=0; i<32; i++){
         cout<<user_maps_seed[i].size()<<endl;
@@ -385,7 +273,7 @@ int main(){
     priority_queue<canducate_user> top_k;
 
 
-    gen_ExAudiences(top_k, user_maps_pool, user_maps_seed, centroid_angle,  5, 50, 1000, data, queries);
+    gen_ExAudiences_vlsh(top_k, user_maps_pool, user_maps_seed, centroid_angle,  5, 50, 1000, data, queries);
     clock_t time4 = clock();
     while(!top_k.empty()){
         cout<<"NO.:"<<top_k.top().sn<<" Sim:"<<top_k.top().sim<<endl;
@@ -396,6 +284,7 @@ int main(){
     cout<<"all_count: "<<all_count<<endl;
     cout<<"save times: "<< save_calu_times<<endl;
     return 0;
-    
+
 
 }
+#endif

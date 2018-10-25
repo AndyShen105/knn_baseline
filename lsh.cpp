@@ -7,11 +7,7 @@
 #include <math.h>
 #include <random>
 #include <fstream>
-#include <vector>
-#include <unordered_map>
 #include <regex>
-#include <queue>
-#include "util.h"
 #include "data.h"
 #include "lsh.h"
 using namespace std;
@@ -99,10 +95,10 @@ void user_map(unordered_map<int, vector<int>> &user_maps,
 }
 
 float get_cosine_dis(int seed_index,
-                    int pool_index,
-                    int n_feats,
-                    float *data,
-                    float *queries){
+                     int pool_index,
+                     int n_feats,
+                     float *data,
+                     float *queries){
     float dis = 0.0f;
     float datanorm = 0.0f;
     float querynorm = 0.0f;
@@ -110,7 +106,9 @@ float get_cosine_dis(int seed_index,
         dis += data[seed_index*n_feats+i]*queries[pool_index*n_feats+i];
         datanorm += data[seed_index*n_feats+i]*data[seed_index*n_feats+i];
         querynorm += queries[pool_index*n_feats+i]*queries[pool_index*n_feats+i];
-    }   
+    }
+    if (datanorm == 0.0 || querynorm == 0.0)
+        return -1000.0;
     return dis/(sqrt(datanorm) * sqrt(querynorm));
 }
 
@@ -148,12 +146,13 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
                 }
             }
         }
-        cout<<"Bucket"<<i<<" finished "<<endl;
+        //cout<<"Bucket"<<i<<" finished "<<endl;
     }
         
 }
 
 #define CLOCKS_PER_SECOND 1000000.0
+#if DEBUG
 int main(){
     float *data,*queries;
     data = (float *)malloc((int64_t)sizeof(float)*50*247753);
@@ -181,3 +180,4 @@ int main(){
     cout<<"query time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
     return 0;
 }
+#endif

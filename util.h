@@ -16,4 +16,20 @@ typedef struct canducate_user{
         }
     }canducate_user;
 
+struct bucket_info{
+    int sn; // series number of bucket
+    float* centroid; // centroid vector of bucket
+    float theta_b;
+    float centroid_sqrt;
+    bucket_info(int size){
+        centroid = new float[size]();
+    }
+    void centroid_copy(float* centroid_copy, int size){
+        for (int i=0; i<size; i++){
+            centroid[i] = centroid_copy[i];
+        }
+    }
+};
+
+float calutate_acc(std::vector<int>lsh, std::vector<int> v_lsh);
 #endif
