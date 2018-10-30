@@ -25,6 +25,7 @@ using namespace std;
 //------------------
 
 void calculate_cetroid_s1(float *centroid, float *queries, float &centroid_sqrt, int n_feats, vector<int> seed){
+    /*calucte centroid with center of cosine*/
     int centroid_index = 0;
     float max_cos = 0.0f;
     for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
@@ -44,6 +45,7 @@ void calculate_cetroid_s1(float *centroid, float *queries, float &centroid_sqrt,
 }
 
 void calculate_cetroid_s2(float *centroid, float *queries, float &centroid_sqrt, int n_feats, vector<int> seed){
+    /*calucte centroid with 均值向量*/
     for(int j=0; j<n_feats; j++){
         for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
             centroid[j] += queries[(*seed_index)*n_feats+j];
@@ -52,10 +54,11 @@ void calculate_cetroid_s2(float *centroid, float *queries, float &centroid_sqrt,
         centroid_sqrt += pow(centroid[j], 2);
     }
 }
-//calculate cetroid and angle of seed pool
+
+
 void calculate_centroid_angle(vector<bucket_info> &centroid_angle, unordered_map<int,vector<int>> user_maps_seed, float *queries, int n_feats, int n_bit){
+    //calculate cetroid and angle of seed pool
     int n_cycle = pow(2, n_bit);
-    
     for(int i=0; i<n_cycle; i++){
         vector<int> seed = user_maps_seed[i];
         // if size of bucket < 50, skip
@@ -93,7 +96,7 @@ void calculate_centroid_angle(vector<bucket_info> &centroid_angle, unordered_map
     #endif  
 }
 
-//calculate upperbound of each user in userpool.
+
 void calculate_upperbound(vector<int> pool, 
                         float * data, 
                         float* centroid,
@@ -101,6 +104,7 @@ void calculate_upperbound(vector<int> pool,
                         float theta_b, 
                         float* upper_bound_list, 
                         int n_feats){
+    //calculate upperbound of each user in userpool.
     int pool_sn = 0;
     for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
         float user_sqrt = 0.0;
@@ -220,8 +224,9 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
         
 }
 
-#define CLOCKS_PER_SECOND 1000000.0
+
 #if DEBUG
+#define CLOCKS_PER_SECOND 1000000.0
 float calculate_angle(vector<float> a, vector<float> b){
     float a_n = 0.0;
     float b_n = 0.0;
