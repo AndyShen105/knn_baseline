@@ -7,6 +7,7 @@
 #include <vector>
 #include<queue>
 #include "util.h"
+canducate_user calculate_similarity(std::vector<int> seed, int pool_index, int n_feats, float * data, float *queries);
 int signature_bit(float *data, float **planes, int index, int n_feats, int n_plane);
 float** gen_signature_matrix(int n_feats, int n_plane);
 void user_map(std::unordered_map<int, std::vector<int>> &user_maps,

@@ -21,9 +21,37 @@ using namespace std;
 
 #define DEBUG 0
 //------------------
-int all_count = 0;
-int save_calu_times = 0;
+
 //------------------
+
+void calculate_cetroid_s1(float *centroid, float *queries, float &centroid_sqrt, int n_feats, vector<int> seed){
+    int centroid_index = 0;
+    float max_cos = 0.0f;
+    for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
+        float min_sim = 10.0f;
+        for(vector<int>::const_iterator index=seed.cbegin(); index!=seed.cend(); index++){
+            min_sim = min(get_cosine_dis(*seed_index, *index, n_feats, queries, queries), min_sim);
+        }
+        if(max_cos<min_sim){
+            centroid_index = *seed_index;
+            max_cos = min_sim;
+        }
+    }
+    for(int i=0; i<n_feats; i++){
+        centroid[i] = queries[centroid_index*n_feats+i];
+        centroid_sqrt += pow(centroid[i], 2);
+    }
+}
+
+void calculate_cetroid_s2(float *centroid, float *queries, float &centroid_sqrt, int n_feats, vector<int> seed){
+    for(int j=0; j<n_feats; j++){
+        for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
+            centroid[j] += queries[(*seed_index)*n_feats+j];
+        }
+        centroid[j] = centroid[j]/seed.size();
+        centroid_sqrt += pow(centroid[j], 2);
+    }
+}
 //calculate cetroid and angle of seed pool
 void calculate_centroid_angle(vector<bucket_info> &centroid_angle, unordered_map<int,vector<int>> user_maps_seed, float *queries, int n_feats, int n_bit){
     int n_cycle = pow(2, n_bit);
@@ -31,18 +59,11 @@ void calculate_centroid_angle(vector<bucket_info> &centroid_angle, unordered_map
     for(int i=0; i<n_cycle; i++){
         vector<int> seed = user_maps_seed[i];
         // if size of bucket < 50, skip
-        if(seed.size()<50)
+        if(seed.size()<10)
             continue;
         float *centroid = new float[n_feats]();
         float centroid_sqrt=0.0;
-        for(int j=0; j<n_feats; j++){
-            for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
-                centroid[j] += queries[(*seed_index)*n_feats+j];
-            }
-            centroid[j] = centroid[j]/seed.size();
-            centroid_sqrt += pow(centroid[j], 2);
-        }
-
+        calculate_cetroid_s2(centroid, queries, centroid_sqrt, n_feats, seed);
       //get angle B
         float theta_b = 0.0;
         for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
@@ -91,14 +112,19 @@ void calculate_upperbound(vector<int> pool,
         }
 
         float upper_bound=-1000.0;
-        if(user_sqrt!=0) {
+        if(user_sqrt!=0.0) {
             float cos_theta = dot/(sqrt(user_sqrt)*sqrt(centroid_sqrt));
             float theta_ic = acos(cos_theta);
-            if (theta_ic-theta_b>0) {
+
+            if (theta_ic-theta_b>0.0) {
                 upper_bound = cos(theta_ic - theta_b);
+//                cout<<"dot: "<<dot<<endl;
+//                cout<<"user_sqrt: "<<user_sqrt<<endl;
+//                cout<<"theta: "<<theta_ic - theta_b<<endl;
+//                cout<<"upper: "<<upper_bound<<endl;
             }
             else{
-                upper_bound = 1;
+                upper_bound = 1.0;
             }
 
         }
@@ -107,22 +133,6 @@ void calculate_upperbound(vector<int> pool,
     }
 }
 
-canducate_user calculate_similarity(vector<int> seed, int pool_index, int n_feats, float * data, float *queries){
-    float max_sim = 0.0f;
-    for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
-        max_sim = max(get_cosine_dis(*seed_index, pool_index, n_feats, data, queries), max_sim);
-    }
-    canducate_user temp_user;
-    temp_user.sn = pool_index;
-    if(isnan(max_sim)){
-        temp_user.sim = 0.0;
-
-    }
-    else{
-        temp_user.sim = max_sim;
-    }
-    return temp_user;
-}
 
 void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
                     unordered_map<int,vector<int>> user_maps_pool, 
@@ -136,6 +146,9 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
     int n_cycle = pow(2, n_bit);
     canducate_user temp_user;
 
+    int all_count = 0;
+    int save_calu_times = 0;
+
     for(int i=0; i<n_cycle; i++){
 
         if (user_maps_seed[i].empty()){
@@ -145,33 +158,25 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
         vector<int> pool = user_maps_pool[i];
 
         // if size<50, lsh, else v-lsh
-        if (seed.size()<50){
-
-
+        if (seed.size()<10){
             for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
 
                 temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);
-                if (top_k.size()<k && temp_user.sim){
+                if (top_k.size() == k && temp_user.sim > top_k.top().sim )
+                    top_k.pop();
+                if (top_k.size() < k  )
                     top_k.push(temp_user);
-                }
-                else{
-                    if(top_k.top().sim<temp_user.sim && temp_user.sim){
-                        top_k.pop();
-                        top_k.push(temp_user);
-                    }
-                }
             }
 
         }
         else{
-
             float* upper_bound_list = new float[pool.size()];
             for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
                 if(i == (*index).sn){
-#if DEBUG
+                    #if DEBUG
                     cout<<"get bucket info"<<endl;
                     cout<<"centroid_sqrt: "<<(*index).theta_b<<endl;
-#endif
+                    #endif
                     calculate_upperbound(pool, data, (*index).centroid, (*index).centroid_sqrt, (*index).theta_b,  upper_bound_list,  n_feats);
                     break;
 
@@ -179,14 +184,12 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
 
             }
 
-
-
             for(int j=0; j<pool.size(); j++){
-//                cout<<"upper_bound_list: "<<upper_bound_list[j]<<endl;
+//
                 //top-k is not empty and upperbound > top-k.top
                 if(upper_bound_list[j] == -1000.0)
                     continue;
-
+                //cout<<"top of heap:"<<top_k.top().sim<<endl;
                 if(top_k.size()<k || upper_bound_list[j]>=top_k.top().sim ){
                     temp_user = calculate_similarity(seed, pool[j], n_feats, data, queries);
                 }
@@ -218,7 +221,7 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
 }
 
 #define CLOCKS_PER_SECOND 1000000.0
-
+#if DEBUG
 float calculate_angle(vector<float> a, vector<float> b){
     float a_n = 0.0;
     float b_n = 0.0;
@@ -235,7 +238,7 @@ float calculate_angle(vector<float> a, vector<float> b){
     std::cout<<cos<<endl;
     return the;
 }
-#if DEBUG
+
 int main(){
     float *data,*queries;
     data = (float *)malloc((int64_t)sizeof(float)*50*247753);

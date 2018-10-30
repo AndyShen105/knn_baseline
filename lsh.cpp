@@ -13,7 +13,7 @@
 using namespace std;
 
 //set the random interval
-std::uniform_real_distribution<double> dist(-1.0, 1.0);
+std::normal_distribution  <double> dist(-1.0, 1.0);
 
 int signature_bit(float *data, float **planes, int index, int n_feats, int n_plane){
     /*
@@ -94,6 +94,23 @@ void user_map(unordered_map<int, vector<int>> &user_maps,
     
 }
 
+canducate_user calculate_similarity(vector<int> seed, int pool_index, int n_feats, float * data, float *queries){
+    float max_sim = 0.0f;
+    for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
+        max_sim = max(get_cosine_dis(*seed_index, pool_index, n_feats, data, queries), max_sim);
+    }
+    canducate_user temp_user;
+    temp_user.sn = pool_index;
+    if(isnan(max_sim)){
+        temp_user.sim = 0.0;
+
+    }
+    else{
+        temp_user.sim = max_sim;
+    }
+    return temp_user;
+}
+
 float get_cosine_dis(int seed_index,
                      int pool_index,
                      int n_feats,
@@ -121,30 +138,17 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
                     float * data,
                     float *queries){
     int n_cycle = pow(2, n_bit);
+    canducate_user temp_user;
     for(int i=0; i<n_cycle; i++){
         vector<int> seed = user_maps_seed[i];
         vector<int> pool = user_maps_pool[i];
         for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
-            float max_sim = 0.0f;
-            for(vector<int>::const_iterator seed_index=seed.cbegin(); seed_index!=seed.cend(); seed_index++){
-                max_sim = max(get_cosine_dis(*seed_index, *pool_index, n_feats, data, queries), max_sim);
-            }
-            if(isnan(max_sim)){
-            continue;
-            }
-            canducate_user temp_user;
-            temp_user.sn = *pool_index;
-            temp_user.sim = max_sim;
-            
-            if (top_k.size()<=k){
+
+            temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);
+            if (top_k.size() == k && temp_user.sim > top_k.top().sim )
+                top_k.pop();
+            if (top_k.size() < k  )
                 top_k.push(temp_user);
-            }
-            else{
-                if(top_k.top().sim<temp_user.sim){
-                    top_k.pop();
-                    top_k.push(temp_user);
-                }
-            }
         }
         //cout<<"Bucket"<<i<<" finished "<<endl;
     }

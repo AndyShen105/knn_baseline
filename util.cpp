@@ -20,7 +20,7 @@ float calutate_acc(std::vector<int>lsh, std::vector<int> v_lsh){
             }
         }
     }
-    std::cout<<": "<<count<<std::endl;
+    std::cout<<"sim: "<<count<<std::endl;
     return count/lsh.size();
 }
 #if DEBUG

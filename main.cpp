@@ -9,7 +9,7 @@
 #include "util.h"
 #include "lsh.h"
 #include "v_lsh.h"
-
+#include<cmath>
 
 int main(int argc, const char * argv[]) {
 
@@ -83,6 +83,40 @@ int main(int argc, const char * argv[]) {
             unordered_map<int, vector<int>> user_maps_seed;
             user_map(user_maps_seed, queries, sig_maritx, q, r, 5);
             clock_t time2 = clock();
+            //v-lsh
+            vector<int > v_lsh_re;
+            vector<bucket_info> centroid_angle;
+            calculate_centroid_angle(centroid_angle, user_maps_seed, queries, r, 5);
+            for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
+                cout<<"centroid_sqrt: "<<(*index).centroid_sqrt<<endl;
+                for(int i=0; i<50 ;i++)
+                    cout<< (*index).centroid[i]<<" ";
+                cout<<endl;
+            }
+            clock_t time3 = clock();
+            cout<<"pre time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
+            gen_ExAudiences_vlsh(top_k, user_maps_pool, user_maps_seed, centroid_angle,  5, r, k, data, queries);
+            clock_t time4 = clock();
+            cout<<"v_lsh query time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
+            while(!top_k.empty()){
+                v_lsh_re.push_back(top_k.top().sn);
+                top_k.pop();
+            }
+
+            break;
+        }
+
+        case 3:
+        {
+            clock_t time1 = clock();
+            unordered_map<int, vector<int>> user_maps_pool;
+            user_map(user_maps_pool, queries, sig_maritx, n, r, 5);
+            unordered_map<int, vector<int>> user_maps_seed;
+            user_map(user_maps_seed, queries, sig_maritx, q, r, 5);
+            for (int i=0; i<pow(2, 5); i++){
+                cout<<"seed size: "<<user_maps_seed[i].size()<<" pool size: "<<user_maps_pool[i].size()<<endl;
+            }
+            clock_t time2 = clock();
             cout<<"pre-process time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
 
             gen_ExAudiences(top_k, user_maps_pool, user_maps_seed, 5, 50, k, data, queries);
@@ -97,9 +131,11 @@ int main(int argc, const char * argv[]) {
             vector<int > v_lsh_re;
             vector<bucket_info> centroid_angle;
             calculate_centroid_angle(centroid_angle, user_maps_seed, queries, r, 5);
-            gen_ExAudiences_vlsh(top_k, user_maps_pool, user_maps_seed, centroid_angle,  5, r, k, data, queries);
             clock_t time4 = clock();
-            cout<<"v_lsh query time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
+            cout<<"pre process time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
+            gen_ExAudiences_vlsh(top_k, user_maps_pool, user_maps_seed, centroid_angle,  5, r, k, data, queries);
+            clock_t time5 = clock();
+            cout<<"v_lsh query time: "<<(time5-time4)/CLOCKS_PER_SECOND<<endl;
             while(!top_k.empty()){
                 v_lsh_re.push_back(top_k.top().sn);
                 top_k.pop();
