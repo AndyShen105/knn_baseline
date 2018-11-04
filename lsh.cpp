@@ -13,7 +13,9 @@
 using namespace std;
 
 //set the random interval
-std::normal_distribution  <double> dist(-1.0, 1.0);
+//uniform_real_distribution<double>
+//std::normal_distribution  <double> dist(-1.0, 1.0);
+std::uniform_real_distribution  <double> dist(-1.0, 1.0);
 
 int signature_bit(float *data, float **planes, int index, int n_feats, int n_plane){
     /*
@@ -120,9 +122,11 @@ float get_cosine_dis(int seed_index,
     float datanorm = 0.0f;
     float querynorm = 0.0f;
     for(int i=0; i<n_feats; i++){
-        dis += data[seed_index*n_feats+i]*queries[pool_index*n_feats+i];
-        datanorm += data[seed_index*n_feats+i]*data[seed_index*n_feats+i];
-        querynorm += queries[pool_index*n_feats+i]*queries[pool_index*n_feats+i];
+        int s_index = seed_index*n_feats+i;
+        int p_index = pool_index*n_feats+i;
+        dis += data[p_index]*queries[s_index];
+        datanorm += data[p_index]*data[p_index];
+        querynorm += queries[s_index]*queries[s_index];
     }
     if (datanorm == 0.0 || querynorm == 0.0)
         return -1000.0;
@@ -137,22 +141,26 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
                     int k,
                     float * data,
                     float *queries){
+    int count=0;
     int n_cycle = pow(2, n_bit);
     canducate_user temp_user;
+    clock_t time1 = clock();
     for(int i=0; i<n_cycle; i++){
-        vector<int> seed = user_maps_seed[i];
-        vector<int> pool = user_maps_pool[i];
+        vector<int> &seed = user_maps_seed[i];
+        vector<int> &pool = user_maps_pool[i];
         for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
-
+            count++;
+            if(count%10000==0)
+                cout<<(clock()-time1)/1000000.0<<endl;
             temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);
             if (top_k.size() == k && temp_user.sim > top_k.top().sim )
                 top_k.pop();
             if (top_k.size() < k  )
                 top_k.push(temp_user);
         }
-        //cout<<"Bucket"<<i<<" finished "<<endl;
+
     }
-        
+    cout<<"sum cosine calculation of lsh: "<<count<<endl;
 }
 
 #define CLOCKS_PER_SECOND 1000000.0

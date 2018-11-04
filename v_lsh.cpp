@@ -61,9 +61,6 @@ void calculate_centroid_angle(vector<bucket_info> &centroid_angle, unordered_map
     int n_cycle = pow(2, n_bit);
     for(int i=0; i<n_cycle; i++){
         vector<int> seed = user_maps_seed[i];
-        // if size of bucket < 50, skip
-        if(seed.size()<10)
-            continue;
         float *centroid = new float[n_feats]();
         float centroid_sqrt=0.0;
         calculate_cetroid_s2(centroid, queries, centroid_sqrt, n_feats, seed);
@@ -137,93 +134,208 @@ void calculate_upperbound(vector<int> pool,
     }
 }
 
+float calculate_upperbound_per_user(int index,
+                          float * data,
+                          float* centroid,
+                          float centroid_sqrt,
+                          float theta_b,
+                          int n_feats){
+    //calculate upperbound of user .
+    float user_sqrt = 0.0;
+    float dot = 0.0;
+    for(int j=0; j<n_feats; j++){
+        user_sqrt += pow(data[index*n_feats+j], 2);
+        dot += data[index*n_feats+j] * centroid[j];
+    }
+    float upper_bound=-1000.0;
+    if(user_sqrt!=0.0) {
+        float cos_theta = dot/(sqrt(user_sqrt)*sqrt(centroid_sqrt));
+        float theta_ic = acos(cos_theta);
 
-void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
-                    unordered_map<int,vector<int>> user_maps_pool, 
-                    unordered_map<int,vector<int>> user_maps_seed, 
-                    vector<bucket_info> centroid_angle,
-                    int n_bit,
-                    int n_feats,
-                    int k,
-                    float * data,
-                    float *queries){
-    int n_cycle = pow(2, n_bit);
-    canducate_user temp_user;
-
-    int all_count = 0;
-    int save_calu_times = 0;
-
-    for(int i=0; i<n_cycle; i++){
-
-        if (user_maps_seed[i].empty()){
-            continue;
-        }
-        vector<int> seed = user_maps_seed[i];
-        vector<int> pool = user_maps_pool[i];
-
-        // if size<50, lsh, else v-lsh
-        if (seed.size()<10){
-            for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
-
-                temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);
-                if (top_k.size() == k && temp_user.sim > top_k.top().sim )
-                    top_k.pop();
-                if (top_k.size() < k  )
-                    top_k.push(temp_user);
-            }
-
+        if (theta_ic-theta_b>0.0) {
+            upper_bound = cos(theta_ic - theta_b);
+//                cout<<"dot: "<<dot<<endl;
+//                cout<<"user_sqrt: "<<user_sqrt<<endl;
+//                cout<<"theta: "<<theta_ic - theta_b<<endl;
+//                cout<<"upper: "<<upper_bound<<endl;
         }
         else{
-            float* upper_bound_list = new float[pool.size()];
-            for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
-                if(i == (*index).sn){
-                    #if DEBUG
-                    cout<<"get bucket info"<<endl;
-                    cout<<"centroid_sqrt: "<<(*index).theta_b<<endl;
-                    #endif
-                    calculate_upperbound(pool, data, (*index).centroid, (*index).centroid_sqrt, (*index).theta_b,  upper_bound_list,  n_feats);
-                    break;
-
-                }
-
-            }
-
-            for(int j=0; j<pool.size(); j++){
-//
-                //top-k is not empty and upperbound > top-k.top
-                if(upper_bound_list[j] == -1000.0)
-                    continue;
-                //cout<<"top of heap:"<<top_k.top().sim<<endl;
-                if(top_k.size()<k || upper_bound_list[j]>=top_k.top().sim ){
-                    temp_user = calculate_similarity(seed, pool[j], n_feats, data, queries);
-                }
-                else{
-                    all_count++;
-                    save_calu_times += seed.size();
-                }
-
-                if (top_k.size() == k && temp_user.sim > top_k.top().sim )
-                    top_k.pop();
-                if (top_k.size() < k  )
-                    top_k.push(temp_user);
-                               
-            }
-            delete []upper_bound_list;
+            upper_bound = 1.0;
         }
-#if DEBUG
-        cout<<"pool size: "<<pool.size()<<endl;
-        cout<<"seed size: "<<seed.size()<<endl;
-        cout<<"seed capacity: "<<seed.capacity()<<endl;
-        cout<<"Bucket"<<i<<" finished "<<endl;
 
-#endif
+    }
+    return upper_bound;
+}
+
+//void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
+//                    unordered_map<int,vector<int>> user_maps_pool,
+//                    unordered_map<int,vector<int>> user_maps_seed,
+//                    vector<bucket_info> centroid_angle,
+//                    int n_bit,
+//                    int n_feats,
+//                    int k,
+//                    float * data,
+//                    float *queries){
+//    int n_cycle = pow(2, n_bit);
+//    canducate_user temp_user;
+//
+//    int all_count = 0;
+//    int save_calu_times = 0;
+//
+//    for(int i=0; i<n_cycle; i++){
+//
+//        if (user_maps_seed[i].empty()){
+//            all_count++;
+//            continue;
+//        }
+//        vector<int> &seed = user_maps_seed[i];
+//        vector<int> &pool = user_maps_pool[i];
+//
+//        // if size<50, lsh, else v-lsh
+//        if (seed.size()<10){
+//            for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
+//
+//                temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);
+//                if (top_k.size() == k && temp_user.sim > top_k.top().sim )
+//                    top_k.pop();
+//                if (top_k.size() < k  )
+//                    top_k.push(temp_user);
+//            }
+//
+//        }
+//        else{
+//            float* upper_bound_list = new float[pool.size()];
+//            for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
+//                if(i == (*index).sn){
+//                    #if DEBUG
+//                    cout<<"get bucket info"<<endl;
+//                    cout<<"centroid_sqrt: "<<(*index).theta_b<<endl;
+//                    #endif
+//                    calculate_upperbound(pool, data, (*index).centroid, (*index).centroid_sqrt, (*index).theta_b,  upper_bound_list,  n_feats);
+//                    break;
+//
+//                }
+//
+//            }
+//
+//            for(int j=0; j<pool.size(); j++){
+////
+//                //top-k is not empty and upperbound > top-k.top
+//                if(upper_bound_list[j] == -1000.0)
+//                    continue;
+//                //cout<<"top of heap:"<<top_k.top().sim<<endl;
+//                if(top_k.size()<k || upper_bound_list[j]>=top_k.top().sim ){
+//                    temp_user = calculate_similarity(seed, pool[j], n_feats, data, queries);
+//                }
+//                else{
+//                    all_count++;
+//                    save_calu_times += seed.size();
+//                }
+//
+//                if (top_k.size() == k && temp_user.sim > top_k.top().sim )
+//                    top_k.pop();
+//                if (top_k.size() < k  )
+//                    top_k.push(temp_user);
+//
+//            }
+//            delete []upper_bound_list;
+//        }
+//
+//#if DEBUG
+//        cout<<"pool size: "<<pool.size()<<endl;
+//        cout<<"seed size: "<<seed.size()<<endl;
+//        cout<<"seed capacity: "<<seed.capacity()<<endl;
+//        cout<<"Bucket"<<i<<" finished "<<endl;
+//
+//#endif
+//
+//    }
+//    cout<<"all_count: "<<all_count<<endl;
+//    cout<<"save times: "<< save_calu_times<<endl;
+//
+//}
+
+void gen_ExAudiences_vlsh_first(priority_queue<canducate_user> &top_k,
+                          int n_user,
+                          unordered_map<int,vector<int>> &user_maps_seed,
+                          priority_queue<uncertain_user> &user_pool,
+                          const  vector<bucket_info> &centroid_angle,
+                          int n_feats,
+                          int k,
+                          float **hash_func,
+                          float * data,
+                          float *queries) {
+
+    canducate_user temp_user;
+    temp_user.sim = -1000.0;
+    uncertain_user user;
+    int bucket_no;
+    clock_t time1 = clock();
+    for (int i = 0; i < n_user; i++) {
+        if(i%10000==0)
+        {cout<<(clock()-time1)/1000000.0<<endl;
+            cout<<i<<endl;}
+        bucket_no = signature_bit(data, hash_func, i * n_feats, n_feats, 5);
+        vector<int> &seed = user_maps_seed[bucket_no];
+  //      if (seed.size() < 10) {
+
+            temp_user = calculate_similarity(seed, i, n_feats, data, queries);
+//        } else {
+//
+//            float upper_bound = calculate_upperbound_per_user(i, data, centroid_angle[bucket_no].centroid,
+//                                                              centroid_angle[bucket_no].centroid_sqrt,
+//                                                              centroid_angle[bucket_no].theta_b, n_feats);
+//            if (upper_bound == 1.0) {
+//                temp_user = calculate_similarity(seed, i, n_feats, data, queries);
+//            } else {
+//                user.bucket_no = bucket_no;
+//                user.index = i;
+//                user.upperbound = upper_bound;
+//                user_pool.push(user);
+//
+//            }
+//
+//        }
+        if (top_k.size() == k && temp_user.sim > top_k.top().sim && temp_user.sim != -1000.0)
+            top_k.pop();
+        if (top_k.size() < k && temp_user.sim != -1000.0)
+            top_k.push(temp_user);
+    }
+}
+
+void gen_ExAudiences_vlsh_second(priority_queue<canducate_user> &top_k,
+                                unordered_map<int,vector<int>> &user_maps_seed,
+                                priority_queue<uncertain_user> &user_pool,
+                                int k,
+                                int n_feats,
+                                float * data,
+                                float *queries){
+    int all_count=0;
+    int save_calu_times=0;
+    canducate_user temp_user;
+    while(!user_pool.empty()){
+        uncertain_user user = user_pool.top();
+        user_pool.pop();
+        int bucket_no = user.bucket_no;
+        int index = user.index;
+        float upperbound = user.upperbound;
+
+        if( upperbound>=top_k.top().sim ){
+            temp_user = calculate_similarity(user_maps_seed[bucket_no], index, n_feats, data, queries);
+        }else{
+            all_count++;
+            save_calu_times += user_maps_seed[bucket_no].size();
+        }
+        if (top_k.size() == k && temp_user.sim > top_k.top().sim)
+            top_k.pop();
+        if (top_k.size() < k)
+            top_k.push(temp_user);
 
     }
     cout<<"all_count: "<<all_count<<endl;
     cout<<"save times: "<< save_calu_times<<endl;
-        
-}
 
+}
 
 #if DEBUG
 #define CLOCKS_PER_SECOND 1000000.0

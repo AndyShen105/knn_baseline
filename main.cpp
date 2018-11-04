@@ -10,7 +10,7 @@
 #include "lsh.h"
 #include "v_lsh.h"
 #include<cmath>
-
+#include <google/profiler.h>
 int main(int argc, const char * argv[]) {
 
     /* Parameters */
@@ -79,26 +79,38 @@ int main(int argc, const char * argv[]) {
         case 2:
         {   //vlsh
             clock_t time1 = clock();
-            unordered_map<int, vector<int>> user_maps_pool;
-            user_map(user_maps_pool, queries, sig_maritx, n, r, 5);
             unordered_map<int, vector<int>> user_maps_seed;
             user_map(user_maps_seed, queries, sig_maritx, q, r, 5);
+
             clock_t time2 = clock();
             //v-lsh
             vector<int > v_lsh_re;
             vector<bucket_info> centroid_angle;
+            priority_queue<uncertain_user> user_pool;
             calculate_centroid_angle(centroid_angle, user_maps_seed, queries, r, 5);
-            for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
-                cout<<"centroid_sqrt: "<<(*index).centroid_sqrt<<endl;
-                for(int i=0; i<50 ;i++)
-                    cout<< (*index).centroid[i]<<" ";
-                cout<<endl;
-            }
+//            cout<<"size of ce:"<<centroid_angle.size()<<endl;
+//            for(vector<bucket_info>::const_iterator index=centroid_angle.cbegin(); index!=centroid_angle.cend(); index++){
+//                cout<<"no: "<< (*index).sn<<" centroid_sqrt: "<<(*index).centroid_sqrt<<endl;
+//                for(int i=0; i<50 ;i++)
+//                    cout<< (*index).centroid[i]<<" ";
+//                cout<<endl;
+//            }
             clock_t time3 = clock();
             cout<<"pre time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
-            gen_ExAudiences_vlsh(top_k, user_maps_pool, user_maps_seed, centroid_angle,  5, r, k, data, queries);
+
+
+            gen_ExAudiences_vlsh_first(top_k, n, user_maps_seed, user_pool, centroid_angle, r, k, sig_maritx, data, queries);
+            cout<<user_pool.size()<<endl;
+            while(!user_pool.empty())
+            {
+                cout<<user_pool.top().upperbound<<endl;
+                user_pool.pop();
+            }
+            cout<<top_k.top().sim<<endl;
+            gen_ExAudiences_vlsh_second(top_k, user_maps_seed, user_pool, r, k, data, queries);
             clock_t time4 = clock();
             cout<<"v_lsh query time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
+
             while(!top_k.empty()){
                 v_lsh_re.push_back(top_k.top().sn);
                 top_k.pop();
@@ -123,7 +135,9 @@ int main(int argc, const char * argv[]) {
             cout<<"pre-process time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
 
             //query with lsh
+            ProfilerStart("lsh.prof");
             gen_ExAudiences(top_k, user_maps_pool, user_maps_seed, 5, 50, k, data, queries);
+            ProfilerStop();
             clock_t time3 = clock();
             cout<<"lsh query time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
             vector<int> lsh_re;
@@ -141,7 +155,19 @@ int main(int argc, const char * argv[]) {
             cout<<"pre process time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
 
             //query by vlsh
-            gen_ExAudiences_vlsh(top_k, user_maps_pool, user_maps_seed, centroid_angle,  5, r, k, data, queries);
+
+            priority_queue<uncertain_user> user_pool;
+            ProfilerStart("vlsh.prof");
+            gen_ExAudiences_vlsh_first(top_k, n, user_maps_seed, user_pool, centroid_angle, r, k, sig_maritx, data, queries);
+            ProfilerStop();
+            cout<<user_pool.size()<<endl;
+            while(!user_pool.empty())
+            {
+                cout<<user_pool.top().upperbound<<endl;
+                user_pool.pop();
+            }
+            cout<<top_k.top().sim<<endl;
+            gen_ExAudiences_vlsh_second(top_k, user_maps_seed, user_pool, r, k, data, queries);
             clock_t time5 = clock();
             cout<<"v_lsh query time: "<<(time5-time4)/CLOCKS_PER_SECOND<<endl;
             while(!top_k.empty()){

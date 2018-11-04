@@ -16,6 +16,15 @@ typedef struct canducate_user{
         }
     }canducate_user;
 
+typedef struct uncertain_user{
+    int bucket_no;
+    int index;
+    float upperbound;
+    friend bool operator < (uncertain_user s1, uncertain_user s2){
+        return s1.upperbound > s2.upperbound;
+    }
+}uncertain_user;
+
 struct bucket_info{
     int sn; // series number of bucket
     float* centroid; // centroid vector of bucket
