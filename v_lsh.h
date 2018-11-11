@@ -8,15 +8,14 @@
 #include "lsh.h"
 
 
-
-void gen_ExAudiences_vlsh_first(std::priority_queue<canducate_user> &top_k,
-                                int n_user,
-                                std::unordered_map<int,std::vector<int>> &user_maps_seed,
+void gen_ExAudiences_vlsh(std::priority_queue<canducate_user> &top_k,
+                                std::unordered_map<int,std::vector<int>> user_maps_pool,
+                                std::unordered_map<int,std::vector<int>> user_maps_seed,
                                 std::priority_queue<uncertain_user> &user_pool,
-                                const std::vector<bucket_info> &centroid_angle,
+                                std::vector<bucket_info> centroid_angle,
+                                int n_bit,
                                 int n_feats,
                                 int k,
-                                float **hash_func,
                                 float * data,
                                 float *queries);
 void gen_ExAudiences_vlsh_second(std::priority_queue<canducate_user> &top_k,
