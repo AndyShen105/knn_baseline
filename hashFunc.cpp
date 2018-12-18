@@ -105,50 +105,64 @@ float** gen_best_local_signature_matrix(int n_feats, int n_plane, int n_sig,int 
 
 }
 
-int main(){
-#define CLOCKS_PER_SECOND 1000000.0
-#include "data.h"
-    float *queries, *data;
-    data = (float *)malloc((int64_t)sizeof(float)*50*247753);
-    csv_to_array(&data, "/home/andyshen/data/MovieLens/q.txt", 247753, 50);
-    queries = (float *)malloc((int64_t)sizeof(float)*50*33670);
-    csv_to_array(&queries, "/home/andyshen/data/MovieLens/p.txt", 33670, 50);
-    cout<<"read data done"<<endl;
-    clock_t time1 = clock();
-    float** temp = gen_best_local_signature_matrix(50, 5, 5, 33670, data, queries);
-    clock_t time2 = clock();
-    cout<<"time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
-    unordered_map<int, vector<int>> user_maps_seed;
-    unordered_map<int, vector<int>> user_maps_pool;
-    user_map(user_maps_pool, data, temp, 247753, 50, 5);
-    user_map(user_maps_seed, queries, temp, 33670, 50, 5);
-    long sum=0;
-    for(int i=0; i<32; i++)
-    {sum+=user_maps_seed[i].size()*user_maps_pool[i].size();
-       // cout<<user_maps_seed[i].size()<<" "<<user_maps_pool[i].size()<<endl;
-    }
-    cout<<"my mothod"<<sum<<endl;
-    long all_sum=0;
-    long minv=LONG_MAX;
-    long maxv=0;
-    for(int i=0; i<50; i++){
-        float** sig_maritx = gen_signature_matrix(50,5);
-        unordered_map<int, vector<int>> user_maps_seeda;
-        unordered_map<int, vector<int>> user_maps_poola;
-        user_map(user_maps_poola, data, sig_maritx, 247753, 50, 5);
-        user_map(user_maps_seeda, queries, sig_maritx, 33670, 50, 5);
-        long temsum=0;
-        for(int i=0; i<32; i++)
-        {temsum+=user_maps_seeda[i].size()*user_maps_poola[i].size(); }
-        cout<<"random "<<i<<":"<<temsum<<endl;
-        minv=min(minv,temsum);
-        maxv=max(maxv,temsum);
-        all_sum+=temsum;
 
-        free(sig_maritx);sig_maritx= nullptr;
-    }
-    cout<<"avr: "<<all_sum/50<<endl;
-    cout<<"min: "<<minv<<endl;
-    cout<<"max: "<<maxv<<endl;
-    return 0;
-}
+//
+////
+//int main(){
+//#define CLOCKS_PER_SECOND 1000000.0
+//#include "data.h"
+//    float *queries, *data;
+//    data = (float *)malloc((int64_t)sizeof(float)*50*552339);
+//    csv_to_array(&data, "/home/andyshen/data/Yelp/q.txt", 552339, 50);
+//    queries = (float *)malloc((int64_t)sizeof(float)*50*77079);
+//    csv_to_array(&queries, "/home/andyshen/data/Yelp/p.txt", 77079, 50);
+////    data = (float *)malloc((int64_t)sizeof(float)*50*247753);
+////    csv_to_array(&data, "/home/andyshen/data/MovieLens/q.txt", 247753, 50);
+////    queries = (float *)malloc((int64_t)sizeof(float)*50*33670);
+////    csv_to_array(&queries, "/home/andyshen/data/MovieLens/p.txt", 33670, 50);
+//    cout<<"read data done"<<endl;
+//    clock_t time1 = clock();
+//    int arr[15]={1,5,10,20,30,40,50,60,70,80,90,100,120,140,160};
+////    for (int n=0;n<015;n++){
+////        for(int i=0; i<10; i++) {
+////            float **temp = gen_best_local_signature_matrix(50, 5, arr[n], 77079, data, queries);
+////            clock_t time2 = clock();
+////            //cout << "time: " << (time2 - time1) / CLOCKS_PER_SECOND << endl;
+////            unordered_map<int, vector<int>> user_maps_seed;
+////            unordered_map<int, vector<int>> user_maps_pool;
+////            user_map(user_maps_pool, data, temp, 552339, 50, 5);
+////            user_map(user_maps_seed, queries, temp, 77079, 50, 5);
+////            long sum = 0;
+////            for (int i = 0; i < 32; i++) {
+////                sum += user_maps_seed[i].size() * user_maps_pool[i].size();
+////                // cout<<user_maps_seed[i].size()<<" "<<user_maps_pool[i].size()<<endl;
+////            }
+////            cout  << sum<< "," ;
+////        }
+////        cout<<endl;
+////    }
+//
+//    long all_sum=0;
+//    long minv=LONG_MAX;
+//    long maxv=0;
+//    for(int i=0; i<50; i++){
+//        float** sig_maritx = gen_signature_matrix(50,5);
+//        unordered_map<int, vector<int>> user_maps_seeda;
+//        unordered_map<int, vector<int>> user_maps_poola;
+//        user_map(user_maps_poola, data, sig_maritx,552339, 50, 5);
+//        user_map(user_maps_seeda, queries, sig_maritx, 77079, 50, 5);
+//        long temsum=0;
+//        for(int i=0; i<32; i++)
+//        {temsum+=user_maps_seeda[i].size()*user_maps_poola[i].size(); }
+//        cout<<"random "<<i<<":"<<temsum<<endl;
+//        minv=min(minv,temsum);
+//        maxv=max(maxv,temsum);
+//        all_sum+=temsum;
+//
+//        free(sig_maritx);sig_maritx= nullptr;
+//    }
+//    cout<<"avr: "<<all_sum/50<<endl;
+//    cout<<"min: "<<minv<<endl;
+//    cout<<"max: "<<maxv<<endl;
+//    return 0;
+//}

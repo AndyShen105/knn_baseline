@@ -6,9 +6,16 @@
 #include <unordered_map>
 #include <vector>
 #include<queue>
+#include <iostream>
+#include <iomanip>
+#include <math.h>
+#include <random>
+#include <fstream>
+#include <regex>
+#include <vector>
+#include "data.h"
+#include "hashFunc.h"
 #include "util.h"
-
-
 canducate_user calculate_similarity(std::vector<int> seed, int pool_index, int n_feats, float * data, float *queriesint);
 void gen_ExAudiences(std::priority_queue<canducate_user> &top_k,
                      std::unordered_map<int, std::vector<int>> user_maps_pool,
@@ -37,6 +44,11 @@ void gen_ExAudiences_lsh_based(std::priority_queue<canducate_user> &top_k,
                                 int k,
                                 float * data,
                                 float *queries);
-void save_topk( std::priority_queue<canducate_user> top_k, std::string file_path);
-void load_baseline(std::vector<int> &baseline, std::string file_path, char delimiter);
+void pre_user_pool(std::vector<int> &user_bucket_info,
+                   float *data,
+                   float **hash_func,
+                   int n_users,
+                   int n_feats,
+                   int n_plane);
+
 #endif

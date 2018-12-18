@@ -1,36 +1,27 @@
-#include <iostream>
-#include<vector>
-#include<queue>
-#include <time.h>
-#include<cmath>
-#include <google/profiler.h>
-#include "data.h"
+
 #include "main.h"
-#include "knn.h"
-#include "sort.h"
-#include "util.h"
-#include "lsh.h"
-#include "v_lsh.h"
-#include "hashFunc.h"
+
 
 int main(int argc, const char * argv[]) {
 
     /* Parameters */
-    int n, r, q, k, s, flag;
+    int n, r, q, k, n_samples, flag;
     float *data, *queries;
     n = atoi( argv[1] ); // Size of dataset (rows)
     r = atoi( argv[2] ); // Number of dimensions (columns)
     k = atoi( argv[3] ); // Nearest neighbors
     q = atoi( argv[4] ); // Number of queries
     flag = atoi( argv[5] ); //query by which mode
-    string inputFile = argv[6];
-    string queryFile = argv[7];
+    n_samples = atoi( argv[6] ); //query by which mode
+    string inputFile = argv[7];
+    string queryFile = argv[8];
 
     cout<<"Size of dataset: "<<n<<endl;
     cout<<"Number of dimensions : "<<r<<endl;
     cout<<"Top-k: "<<k<<endl;
     cout<<"Number of Seeds: "<<q<<endl;
     cout<<"State: "<<flag<<endl;
+    cout<<"n_sample: "<<n_samples<<endl;
     cout<<"InputFile: "<< inputFile <<endl;
     cout<<"QueryFile: "<< queryFile <<endl;
 
@@ -56,7 +47,6 @@ int main(int argc, const char * argv[]) {
 
     //gen sig maritx
     int n_bit = 5;
-    float** sig_maritx = gen_signature_matrix(50, n_bit);
     priority_queue<canducate_user> top_k;
 
     switch  (flag){
@@ -71,40 +61,47 @@ int main(int argc, const char * argv[]) {
         }
         case 1:
         {   //lsh
+            float** sig_maritx = gen_signature_matrix(50, n_bit);
             unordered_map<int, vector<int>> user_maps_pool;
             user_map(user_maps_pool, data, sig_maritx, n, r, n_bit);
             unordered_map<int, vector<int>> user_maps_seed;
             user_map(user_maps_seed, queries, sig_maritx, q, r, n_bit);
-            vector<int> user_bucket_info;
-            pre_user_pool(user_bucket_info, data, sig_maritx, n, r, n_bit);
+
             clock_t time1 = clock();
             gen_ExAudiences(top_k, user_maps_pool, user_maps_seed, n_bit, r, k, data, queries);
             clock_t time2 = clock();
             cout<<"lsh query time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
-            vector<int> lsh;
-            while(!top_k.empty()){
-                lsh.push_back(top_k.top().sn);
-                top_k.pop();
-            }
-            clock_t time3 = clock();
-            gen_ExAudiences_lsh_based(top_k, user_maps_seed, user_bucket_info, n, r, k, data, queries);
-            clock_t time4 = clock();
-            cout<<"lsh base query time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
-            vector<int> vlsh;
-            while(!top_k.empty()){
-                vlsh.push_back(top_k.top().sn);
-                top_k.pop();
-            }
-            cout<<"accuary: "<<calutate_acc(lsh , vlsh )<<endl;
+
             break;
         }
         case 2:
-        {   //vlsh
+        {   //lsh+suiji
+            float**  sig_maritx_best = gen_best_local_signature_matrix(50, 5, n_samples , q, data, queries);
             clock_t time1 = clock();
             unordered_map<int, vector<int>> user_maps_seed;
-            user_map(user_maps_seed, data, sig_maritx, q, r, n_bit);
+            user_map(user_maps_seed, queries, sig_maritx_best, q, r, n_bit);
             unordered_map<int, vector<int>> user_maps_pool;
-            user_map(user_maps_pool, queries, sig_maritx, n, r, n_bit);
+            user_map(user_maps_pool, data, sig_maritx_best, n, r, n_bit);
+            clock_t time2 = clock();
+
+
+            vector<bucket_info> centroid_angle;
+            priority_queue<uncertain_user> user_pool;
+            clock_t time3 = clock();
+            cout<<"pre time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
+            gen_ExAudiences(top_k, user_maps_pool, user_maps_seed, n_bit, r, k, data, queries);
+            clock_t time4 = clock();
+            cout<<"lsh+suiji query time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
+            break;
+        }
+        case 3:
+        {   //vlsh
+            float**  sig_maritx_best = gen_best_local_signature_matrix(50, 5, n_samples, q, data, queries);
+            clock_t time1 = clock();
+            unordered_map<int, vector<int>> user_maps_seed;
+            user_map(user_maps_seed, queries, sig_maritx_best, q, r, n_bit);
+            unordered_map<int, vector<int>> user_maps_pool;
+            user_map(user_maps_pool, data, sig_maritx_best, n, r, n_bit);
             clock_t time2 = clock();
             //v-lsh
             vector<int > v_lsh_re;
@@ -119,27 +116,25 @@ int main(int argc, const char * argv[]) {
             break;
         }
 
-        case 3:
+        case 4:
         {   //vlsh and lsh
             clock_t time1 = clock();
-
-            //init user and see map which used by lsh and vlsh
-            unordered_map<int, vector<int>> user_maps_pool;
-            user_map(user_maps_pool, data, sig_maritx, n, r, n_bit);
+            float**  sig_maritx_best = gen_best_local_signature_matrix(50, 5, n_samples , q, data, queries);
             unordered_map<int, vector<int>> user_maps_seed;
-            user_map(user_maps_seed, queries, sig_maritx, q, r, n_bit);
-            for (int i=0; i<pow(2, n_bit); i++){
-                cout<<"seed size: "<<user_maps_seed[i].size()<<" pool size: "<<user_maps_pool[i].size()<<endl;
-            }
+            user_map(user_maps_seed, queries, sig_maritx_best, q, r, n_bit);
             clock_t time2 = clock();
             cout<<"pre-process time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
 
-            //query with lsh
-            ProfilerStart("lsh.prof");
-            gen_ExAudiences(top_k, user_maps_pool, user_maps_seed, n_bit, r, k, data, queries);
-            ProfilerStop();
+            //init user and see map which used by lsh and vlsh
+            unordered_map<int, vector<int>> user_maps_pool;
+            user_map(user_maps_pool, data, sig_maritx_best, n, r, n_bit);
+
+
             clock_t time3 = clock();
-            cout<<"lsh query time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
+            //query with lsh
+            gen_ExAudiences(top_k, user_maps_pool, user_maps_seed, n_bit, r, k, data, queries);
+            clock_t time4 = clock();
+            cout<<"lsh query time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
             vector<int> lsh_re;
             while(!top_k.empty()){
                 lsh_re.push_back(top_k.top().sn);
@@ -150,28 +145,32 @@ int main(int argc, const char * argv[]) {
             vector<int > v_lsh_re;
             vector<bucket_info> centroid_angle;
             // init centroid info
+            clock_t time5 = clock();
             calculate_centroid_angle(centroid_angle, user_maps_seed, queries, r, n_bit);
-            clock_t time4 = clock();
-            cout<<"pre process time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
+            clock_t time6 = clock();
+            cout<<"calculate centroid angle time: "<<(time6-time5)/CLOCKS_PER_SECOND<<endl;
 
             //query by vlsh
 
             priority_queue<uncertain_user> user_pool;
-            ProfilerStart("vlsh.prof");
+            //ProfilerStart("vlsh.prof");
             gen_ExAudiences_vlsh(top_k, user_maps_pool, user_maps_seed, user_pool, centroid_angle, n_bit, r, k, data, queries);
-            ProfilerStop();
-            clock_t time5 = clock();
-            cout<<"v_lsh query time: "<<(time5-time4)/CLOCKS_PER_SECOND<<endl;
+            //ProfilerStop();
+            clock_t time7 = clock();
+            cout<<"v_lsh query time: "<<(time7-time6)/CLOCKS_PER_SECOND<<endl;
             while(!top_k.empty()){
                 v_lsh_re.push_back(top_k.top().sn);
                 top_k.pop();
             }
 
+            cout<<"size of vlsh: "<<v_lsh_re.size()<<endl;
+            cout<<"size of  lsh: "<<lsh_re.size()<<endl;
             //calculate accary between lsh and vlsh
             cout<<"accuary: "<<calutate_acc(lsh_re, v_lsh_re)<<endl;
 
             break;
         }
+
 
     }
     free(data); data = nullptr;

@@ -172,9 +172,9 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
                     float *queries){
 
     int n_cycle = pow(2, n_bit);
-    int all_count = 0;
-    int save_calu_times = 0;
-    int sum_save_times = 0;
+    long long all_count = 0;
+    long long save_calu_times = 0;
+    long long sum_save_times = 0;
     canducate_user temp_user;
     uncertain_user user;
 
@@ -193,7 +193,7 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
                 temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);
                 if (top_k.size() == k && temp_user.sim > top_k.top().sim )
                     top_k.pop();
-                if (top_k.size() < k  )
+                if (top_k.size() < k )
                     top_k.push(temp_user);
             }
         }
@@ -203,7 +203,6 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
                                                                   centroid_angle[i].centroid_sqrt,
                                                                   centroid_angle[i].theta_b, n_feats);
                 if (upper_bound == 1.0) {
-                    sum_save_times+=seed.size();
                     temp_user = calculate_similarity(seed, i, n_feats, data, queries);
                     if (top_k.size() == k && temp_user.sim > top_k.top().sim && temp_user.sim != -1000.0)
                         top_k.pop();
@@ -219,7 +218,7 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
             }
         }
     }
-    cout<<user_pool.size()<<endl;
+    cout<<"size of candicate user with uppbound"<<user_pool.size()<<endl;
     while(!user_pool.empty()){
         user = user_pool.top();
         user_pool.pop();
@@ -228,7 +227,6 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
         float upperbound = user.upperbound;
         if( upperbound >= top_k.top().sim ){
             vector<int> &seed = user_maps_seed[bucket_no];
-            sum_save_times+=seed.size();
             temp_user = calculate_similarity(seed, index, n_feats, data, queries);
             if (top_k.size() == k && temp_user.sim > top_k.top().sim && temp_user.sim != -1000.0)
                 top_k.pop();
@@ -241,7 +239,6 @@ void gen_ExAudiences_vlsh(priority_queue<canducate_user> &top_k,
     }
     cout<<"all_count: "<<all_count<<endl;
     cout<<"save times: "<< save_calu_times<<endl;
-    cout<<"percent of savetimes: "<<sum_save_times<<endl;
 
 }
 /*

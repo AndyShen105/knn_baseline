@@ -18,6 +18,21 @@ THE SOFTWARE.
 #ifndef MAIN_H
 #define MAIN_H
 
+
+#include <iostream>
+#include<vector>
+#include<queue>
+#include <time.h>
+#include<cmath>
+//#include <google/profiler.h>
+#include "data.h"
+#include "knn.h"
+#include "sort.h"
+#include "util.h"
+#include "lsh.h"
+#include "v_lsh.h"
+#include "hashFunc.h"
+
 /* Switches */
 #define DEBUG 0
 #define DUMPOUTPUT 0

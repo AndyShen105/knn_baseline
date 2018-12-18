@@ -2,16 +2,9 @@
 // Created by Hang Shen on 2018/7/12.
 //
 
-#include <iostream>
-#include <iomanip>
-#include <math.h>
-#include <random>
-#include <fstream>
-#include <regex>
-#include <vector>
-#include "data.h"
+
 #include "lsh.h"
-#include "hashFunc.h"
+
 
 using namespace std;
 void save_topk( priority_queue<canducate_user> top_k, string file_path){
@@ -106,19 +99,24 @@ void gen_ExAudiences(priority_queue<canducate_user> &top_k,
     int n_cycle = pow(2, n_bit);
     canducate_user temp_user;
     clock_t time1 = clock();
-    int tempcount;
+    long long sum_calculations_cosin = 0;
     for(int i=0; i<n_cycle; i++){
         vector<int> &seed = user_maps_seed[i];
         vector<int> &pool = user_maps_pool[i];
+        int temp = seed.size()*pool.size();
+        if(temp>0)
+            sum_calculations_cosin += seed.size()*pool.size();
         for(vector<int>::const_iterator pool_index=pool.cbegin(); pool_index!=pool.cend(); pool_index++){
             temp_user = calculate_similarity(seed, *pool_index, n_feats, data, queries);
+
             if (top_k.size() == k && temp_user.sim > top_k.top().sim )
                 top_k.pop();
-            if (top_k.size() < k  )
+            if (top_k.size() < k )
                 top_k.push(temp_user);
         }
 
     }
+    cout<<"lsh sum calculate cosine : "<<sum_calculations_cosin<<endl;
 }
 
 void pre_user_pool(vector<int> &user_bucket_info,
@@ -147,9 +145,9 @@ void gen_ExAudiences_lsh_based(priority_queue<canducate_user> &top_k,
                                float *queries) {
 
     canducate_user temp_user;
-    temp_user.sim = -1000.0;
+    temp_user.sim = -1000.000;
     int bucket_no;
-    int tempcount=0;
+    long long tempcount=0;
     for (int i = 0; i < n_user; i++) {
         if(i%10000==0)
             cout<<i<<endl;
