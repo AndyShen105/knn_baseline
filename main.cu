@@ -23,6 +23,7 @@ __global__ void matrixMulCosine(float* d_data, float * d_query, float * d_result
 __global__ void preProcess(float* d_data, float * d_query, float * d_Udot, float * d_Sdot, int n, int q, int n_feats);
 __global__ void matrixMulCosineOpt(float* d_data, float * d_query, float * d_result, int *uIndex, int *qIndex, int q, int n,
                                    float* d_Udot, float* d_Sdot,int n_feats);
+
 int* vector2int(vector<int> v){
     int* pV;
     int size = v.size();
@@ -117,8 +118,8 @@ void gen_ExAudiences_cuda(priority_queue<canducate_user> &top_k,
             //copy索引数据到device
             qIndex = vector2int(seed);
             cudaMemcpy((void*)d_qIndex, (void*) qIndex, qIndex_Bytes, cudaMemcpyHostToDevice);
-            cudaMemcpy((void*)d_uIndex, (void*) uIndex, uIndex_Bytes, cudaMemcpyHostToDevice);
-
+            cudaError_t cudaStatus=cudaMemcpy((void*)d_uIndex, (void*) uIndex, uIndex_Bytes, cudaMemcpyHostToDevice);
+            cout<<cudaStatus<<endl;
             dim3 blockSize(1024);
             dim3 gridSize((uCount*seed.size() + blockSize.x - 1) / blockSize.x);
 
@@ -198,7 +199,6 @@ void gen_ExAudiences_cudaOpt(priority_queue<canducate_user> &top_k,
     long query_Bytes = sizeof(float)*q*n_feats;
     long data_Bytes = sizeof(float)*n*n_feats;
 
-
     // 申请数据device内存
     float  *d_data, *d_query, *d_Udot, *d_Sdot;
     cudaMalloc((void**)&d_query, query_Bytes);
@@ -209,17 +209,17 @@ void gen_ExAudiences_cudaOpt(priority_queue<canducate_user> &top_k,
     cudaMemcpy((void*)d_query, (void*) queries, query_Bytes, cudaMemcpyHostToDevice);
     cudaMemcpy((void*)d_data, (void*) data, data_Bytes, cudaMemcpyHostToDevice);
 
-    dim3 preProblockSize(1024);
+    dim3 preProblockSize(512);
     dim3 preProgridSize((n+q+preProblockSize.x - 1) / preProblockSize.x);
 
     preProcess<< < preProgridSize, preProblockSize >> >(d_data, d_query, d_Udot, d_Sdot, n, q, n_feats);
-
-    cout<<"grid: "<<preProgridSize.x<<" block:"<<preProblockSize.x<<endl;
+    cudaDeviceSynchronize();
+    //cout<<"grid: "<<preProgridSize.x<<" block:"<<preProblockSize.x<<endl;
 
     canducate_user temp_user;
     uncertain_user user;
 
-    for(int i=0; i<n_cycle; i++){
+    for(int i=0; i<1; i++){
 
         if (user_maps_seed[i].empty()){
             continue;
@@ -270,17 +270,15 @@ void gen_ExAudiences_cudaOpt(priority_queue<canducate_user> &top_k,
 
             //copy索引数据到device
             qIndex = vector2int(seed);
-            cudaMemcpy((void*)d_qIndex, (void*) qIndex, qIndex_Bytes, cudaMemcpyHostToDevice);
-            cudaMemcpy((void*)d_uIndex, (void*) uIndex, uIndex_Bytes, cudaMemcpyHostToDevice);
-
+            cudaError_t cudaStatus1=cudaMemcpy((void*)d_qIndex, (void*) qIndex, qIndex_Bytes, cudaMemcpyHostToDevice);
+            cudaError_t cudaStatus2=cudaMemcpy((void*)d_uIndex, (void*) uIndex, uIndex_Bytes, cudaMemcpyHostToDevice);
+            //cout<<cudaStatus1<<" "<<cudaStatus2<<endl;
             dim3 blockSize(1024);
             dim3 gridSize((uCount*seed.size() + blockSize.x - 1) / blockSize.x);
+            matrixMulCosineOpt<< < gridSize, blockSize >> >(d_data, d_query,d_result, uIndex, qIndex, seed.size(), uCount, d_Udot, d_Sdot, n_feats);
 
-//            cout<<"uCount: "<<uCount<<" qCount: "<<seed.size()<<endl;
-//            cout<<"sum thread: "<<uCount*seed.size()<<"grid: "<<gridSize.x<<" block:"<<blockSize.x<<endl;
-
-            matrixMulCosineOpt<< < gridSize, blockSize >> >(d_data, d_query,d_result, uIndex,qIndex,  seed.size(), uCount, d_Udot, d_Sdot, n_feats);
-            cudaDeviceSynchronize();
+            cudaError_t cudaStatus = cudaDeviceSynchronize();
+            printf("%s\n", cudaGetErrorString(cudaStatus));
             cudaMemcpy((void*)result, (void*)d_result, result_Bytes, cudaMemcpyDeviceToHost);
             for(int i=0; i<uCount; i++){
                 float tempSim = 0.0;
@@ -299,15 +297,13 @@ void gen_ExAudiences_cudaOpt(priority_queue<canducate_user> &top_k,
             cudaFree(d_result);
             cudaFree(d_qIndex);
             cudaFree(d_uIndex);
-            cudaFree(d_Udot);
-            cudaFree(d_Sdot);
             free(result);
             free(qIndex);
             free(uIndex);
-
-
         }
     }
+    cudaFree(d_Udot);
+    cudaFree(d_Sdot);
     cudaFree(d_data);
     cudaFree(d_query);
     cout<<"size of candicate user with uppbound"<<user_pool.size()<<endl;
@@ -393,7 +389,7 @@ __global__ void matrixMulCosine(float* d_data, float * d_query, float * d_result
     int index = threadIdx.x + blockIdx.x * blockDim.x;
     int n_index = uIndex[index/q]*n_feats;
     int q_index = qIndex[index%q]*n_feats;
-    //printf("index: %d n_index: %d q_index: %d \r\n", index, n_index/50, q_index/50);
+    printf("index: %d n_index: %d q_index: %d \r\n", index, uIndex[index/q], qIndex[index%q]);
     //关闭多余的线程
     if(index>=n*q)
         return;
@@ -414,26 +410,24 @@ __global__ void matrixMulCosine(float* d_data, float * d_query, float * d_result
     d_result[index] = max(d_result[index], temp);
 
 }
+
 /*----------------------------------------------------------------*/
 __global__ void preProcess(float* d_data, float * d_query, float * d_Udot, float * d_Sdot, int n, int q, int n_feats){
-    int index,n_index;
+    int index;
     index = threadIdx.x + blockIdx.x * blockDim.x;
-    n_index = index-q;
-    printf("q: %d \r\n ",q);
-    printf("n_index: %d index: %d \r\n ",n_index, index);
-    if(n_index>n)
+    if(index>n+q)
         return;
 
     float x;
-    if(n_index<0){
+    if(index<q){
         x = dotProduct(d_query, d_query, index*n_feats, index*n_feats, n_feats);
         d_Sdot[index]=sqrt(x);
-
-r
+        //printf(" index: %d d_Sdot: %f \r\n ", index, x);
     }else{
-        x = dotProduct(d_data, d_data, n_index*n_feats, n_index*n_feats, n_feats);
-        d_Udot[n_index]=sqrt(x);
-        //printf("d_Udot: %d index: %d n_index: %d q: %d \r\n ",sqrt(x), index, n_index, q);
+        index = index-q;
+        x = dotProduct(d_data, d_data, index*n_feats, index*n_feats, n_feats);
+        d_Udot[index]=sqrt(x);
+
 
     }
 }
@@ -444,9 +438,9 @@ __global__ void matrixMulCosineOpt(float* d_data, float * d_query, float * d_res
 
     // 获取索引
     int index = threadIdx.x + blockIdx.x * blockDim.x;
-    int n_index = uIndex[index/q]*n_feats;
-    int q_index = qIndex[index%q]*n_feats;
-    //printf("index: %d n_index: %d q_index: %d \r\n", index, n_index/50, q_index/50);
+    int n_index = 0;//uIndex[index/q]*n_feats;
+    int q_index = 0;//qIndex[index%q]*n_feats;
+    printf("temp: %f \r\n",qIndex[0]);
     //关闭多余的线程
     if(index>=n*q)
         return;
@@ -454,14 +448,12 @@ __global__ void matrixMulCosineOpt(float* d_data, float * d_query, float * d_res
     //初始化结果为0
     d_result[index]=0.0;
     float dot,temp;
+
     dot = dotProduct(d_data, d_query, n_index, q_index, n_feats);
-    temp = dot/(sqrt(d_Sdot[qIndex[index%q]])*sqrt(d_Udot[uIndex[index/q]]));
-/*
-    printf("n_index: %d \r\n",n_index/50);
-    printf("d_index: %d \r\n",q_index/50);
-    if(index/q==0)
-        printf("index: %d  temp: %f \r\n",index/q, temp);
- */
+   // temp = dot/(sqrt(d_Sdot[qIndex[index%q]])*sqrt(d_Udot[uIndex[index/q]]));
+    temp = dot/(sqrt(d_Sdot[0])*sqrt(d_Udot[0]));
+    //printf("index: %d  temp: %f \r\n",index/q, temp);
+
     d_result[index] = max(d_result[index], temp);
 
 }
