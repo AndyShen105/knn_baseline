@@ -11,7 +11,7 @@
 #include <iomanip>
 #include <regex>
 #include <unordered_map>
-#define LONG_MAX      2147483647L
+//#define LONG_MAX      2147483647L
 using namespace std;
 int signature_bit(float *data, float **planes, int index, int n_feats, int n_plane);
 float** gen_signature_matrix(int n_feats, int n_plane);

@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "lsh.h"
 #include "v_lsh.h"
 #include "hashFunc.h"
+#include "cudaopt.h"
 
 /* Switches */
 #define DEBUG 0

@@ -27,7 +27,7 @@ find_package(CUDA REQUIRED)
 file(GLOB COMMON common.h common.cpp)
 
 # 添加*.cu源文件
-file(GLOB CU main.cu)
+file(GLOB CU cudaopt.cu)
 
  #添加包含目录
 include_directories(${CUDA_INCLUDE_DIRS})
@@ -36,8 +36,11 @@ include_directories(/usr/local/cuda-9.0/samples/common/inc)
 
 
  #添加可执行文件
-CUDA_ADD_EXECUTABLE(First # target名
-        main.cu  # 添加*.cu源文件
+CUDA_ADD_EXECUTABLE(experiment # target名
+        main.cpp
+        main.h
+        cudaopt.cu  # 添加*.cu源文件
+        cudaopt.h
         data.cpp
         data.h
         lsh.cpp
@@ -45,6 +48,9 @@ CUDA_ADD_EXECUTABLE(First # target名
         v_lsh.cpp
         v_lsh.h
         util.h
+        util.cpp
+        knn.cpp
+        knn.h
         hashFunc.cpp
         hashFunc.h
         )

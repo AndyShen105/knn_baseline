@@ -76,7 +76,7 @@ float** gen_best_local_signature_matrix(int n_feats, int n_plane, int n_sig,int 
 
     vector<float**> all_sig;
     int index = 0;
-    long min_value = LONG_MAX;
+    long min_value = 2147483647L;
 
 
     for(int i=0; i<n_sig; i++){

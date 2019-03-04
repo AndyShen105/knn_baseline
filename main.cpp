@@ -170,7 +170,46 @@ int main(int argc, const char * argv[]) {
 
             break;
         }
+        case 5:
+        {
+            clock_t time1 = clock();
+            float**  sig_maritx_best = gen_best_local_signature_matrix(r, n_bit, n_samples , q, data, queries);
+            unordered_map<int, vector<int>> user_maps_seed;
+            user_map(user_maps_seed, queries, sig_maritx_best, q, r, n_bit);
+            vector<int> user_bucket_info;
+            pre_user_pool(user_bucket_info, data, sig_maritx_best, n, r, n_bit);
+            clock_t time2 = clock();
+            cout<<"pre-process time: "<<(time2-time1)/CLOCKS_PER_SECOND<<endl;
 
+            //init user and see map which used by lsh and vlsh
+            unordered_map<int, vector<int>> user_maps_pool;
+            user_map(user_maps_pool, data, sig_maritx_best, n, r, n_bit);
+            clock_t time3 = clock();
+            cout<<"calculate user pool time: "<<(time3-time2)/CLOCKS_PER_SECOND<<endl;
+
+            vector<bucket_info> centroid_angle;
+            calculate_centroid_angle(centroid_angle, user_maps_seed, queries, r, n_bit);
+            clock_t time4 = clock();
+            cout<<"calculate centroid angle time: "<<(time4-time3)/CLOCKS_PER_SECOND<<endl;
+
+            priority_queue<canducate_user> top_k;
+            priority_queue<uncertain_user> indexUser;
+
+            gen_ExAudiences_vlsh(top_k, user_maps_pool, user_maps_seed, indexUser, centroid_angle, n_bit, r, k, data, queries);
+            clock_t time5 = clock();
+            cout<<"cpu query time: "<<(time5-time4)/CLOCKS_PER_SECOND<<endl;
+
+            //gen_ExAudiences_cuda(top_k, user_maps_pool, user_maps_seed, indexUser, centroid_angle,  5, 50, 1000, 247753, 33670, data, queries);
+            gen_ExAudiences_cudabase(top_k, user_maps_seed, user_bucket_info,  indexUser, centroid_angle, n_bit, r, k, n, q, data, queries);
+            clock_t time6 = clock();
+            cout<<"query time cuda: "<<(time6-time5)/CLOCKS_PER_SECOND<<endl;
+
+            gen_ExAudiences_cudaOpt(top_k, user_maps_pool, user_maps_seed, indexUser, centroid_angle, n_bit, r, k, n, q, data, queries);
+            priority_queue<uncertain_user> user_pool;
+            clock_t time7 = clock();
+            cout<<"query time cudaopt: "<<(time7-time6)/CLOCKS_PER_SECOND<<endl;
+            break;
+        }
 
     }
     free(data); data = nullptr;
